@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, UserPlus, Shield, ShieldX } from 'lucide-react';
+import { User, UserPlus, Shield, ShieldX, UserCog } from 'lucide-react';
 import { database, User as UserType } from '@/lib/database';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,10 +15,10 @@ const CashierManagement: React.FC = () => {
   const [cashiers, setCashiers] = useState<UserType[]>([]);
   const [isAddingCashier, setIsAddingCashier] = useState(false);
   const [newCashier, setNewCashier] = useState({
+    fullName: '',
     username: '',
     email: '',
-    password: '',
-    fullName: ''
+    password: ''
   });
   const { toast } = useToast();
 
@@ -35,10 +36,10 @@ const CashierManagement: React.FC = () => {
   };
 
   const handleAddCashier = async () => {
-    if (!newCashier.username || !newCashier.password || !newCashier.email) {
+    if (!newCashier.fullName || !newCashier.username || !newCashier.password || !newCashier.email) {
       toast({
         title: "Error",
-        description: "Usuario, email y contraseña son requeridos",
+        description: "Todos los campos son requeridos",
         variant: "destructive"
       });
       return;
@@ -50,22 +51,22 @@ const CashierManagement: React.FC = () => {
         email: newCashier.email,
         password: newCashier.password,
         role: 'cashier',
-        fullName: newCashier.fullName || newCashier.username,
+        fullName: newCashier.fullName,
         isActive: true
       });
 
       toast({
-        title: "Cajero agregado",
-        description: `${newCashier.username} ha sido agregado exitosamente`
+        title: "Cajero registrado exitosamente",
+        description: `${newCashier.fullName} ha sido agregado como cajero y puede ingresar al sistema`
       });
 
-      setNewCashier({ username: '', email: '', password: '', fullName: '' });
+      setNewCashier({ fullName: '', username: '', email: '', password: '' });
       setIsAddingCashier(false);
       loadCashiers();
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo agregar el cajero",
+        description: "No se pudo registrar el cajero. Verifique que el usuario no exista",
         variant: "destructive"
       });
     }
@@ -96,54 +97,117 @@ const CashierManagement: React.FC = () => {
           <DialogTrigger asChild>
             <Button className="bg-purple-600 hover:bg-purple-700">
               <UserPlus className="mr-2 h-4 w-4" />
-              Agregar Cajero
+              Registrar Nuevo Cajero
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Agregar Nuevo Cajero</DialogTitle>
+              <DialogTitle className="flex items-center">
+                <UserCog className="mr-2 h-5 w-5 text-purple-600" />
+                Registro de Cajero
+              </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div>
-                <Label htmlFor="username">Usuario</Label>
-                <Input
-                  id="username"
-                  value={newCashier.username}
-                  onChange={(e) => setNewCashier({...newCashier, username: e.target.value})}
-                  placeholder="Nombre de usuario"
-                />
+            <div className="space-y-6 pt-4">
+              {/* Información Personal */}
+              <div className="space-y-3">
+                <div className="border-b border-gray-200 pb-2">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    Información Personal
+                  </h3>
+                </div>
+                <div>
+                  <Label htmlFor="fullName" className="text-sm font-medium">
+                    Nombre Completo *
+                  </Label>
+                  <Input
+                    id="fullName"
+                    value={newCashier.fullName}
+                    onChange={(e) => setNewCashier({...newCashier, fullName: e.target.value})}
+                    placeholder="Ej: María González López"
+                    className="mt-1"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Correo Electrónico *
+                  </Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={newCashier.email}
+                    onChange={(e) => setNewCashier({...newCashier, email: e.target.value})}
+                    placeholder="maria.gonzalez@empresa.com"
+                    className="mt-1"
+                  />
+                </div>
               </div>
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newCashier.email}
-                  onChange={(e) => setNewCashier({...newCashier, email: e.target.value})}
-                  placeholder="correo@ejemplo.com"
-                />
+
+              {/* Credenciales de Acceso */}
+              <div className="space-y-3">
+                <div className="border-b border-gray-200 pb-2">
+                  <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+                    Credenciales de Acceso
+                  </h3>
+                </div>
+                <div>
+                  <Label htmlFor="username" className="text-sm font-medium">
+                    Usuario *
+                  </Label>
+                  <Input
+                    id="username"
+                    value={newCashier.username}
+                    onChange={(e) => setNewCashier({...newCashier, username: e.target.value})}
+                    placeholder="maria.gonzalez"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Este será el usuario para ingresar al sistema
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="password" className="text-sm font-medium">
+                    Contraseña *
+                  </Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={newCashier.password}
+                    onChange={(e) => setNewCashier({...newCashier, password: e.target.value})}
+                    placeholder="Contraseña segura"
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Mínimo 6 caracteres recomendado
+                  </p>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="password">Contraseña</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={newCashier.password}
-                  onChange={(e) => setNewCashier({...newCashier, password: e.target.value})}
-                  placeholder="Contraseña"
-                />
+
+              {/* Información del Rol */}
+              <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                <div className="flex items-center space-x-2">
+                  <Shield className="h-4 w-4 text-purple-600" />
+                  <span className="text-sm font-medium text-purple-800">Rol: Cajero</span>
+                </div>
+                <p className="text-xs text-purple-600 mt-1">
+                  Tendrá acceso a ventas, compras e inventario
+                </p>
               </div>
-              <div>
-                <Label htmlFor="fullName">Nombre Completo (Opcional)</Label>
-                <Input
-                  id="fullName"
-                  value={newCashier.fullName}
-                  onChange={(e) => setNewCashier({...newCashier, fullName: e.target.value})}
-                  placeholder="Nombre completo"
-                />
-              </div>
-              <Button onClick={handleAddCashier} className="w-full">
-                Agregar Cajero
+
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  Los datos se guardarán localmente en el sistema. El cajero podrá ingresar 
+                  inmediatamente con las credenciales proporcionadas.
+                </AlertDescription>
+              </Alert>
+
+              <Button 
+                onClick={handleAddCashier} 
+                className="w-full bg-purple-600 hover:bg-purple-700"
+                size="lg"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Registrar Cajero
               </Button>
             </div>
           </DialogContent>
@@ -167,6 +231,10 @@ const CashierManagement: React.FC = () => {
                     <h3 className="font-semibold text-lg">{cashier.fullName || cashier.username}</h3>
                     <p className="text-gray-600">@{cashier.username}</p>
                     <p className="text-gray-500 text-sm">{cashier.email}</p>
+                    <div className="flex items-center mt-1">
+                      <Shield className="h-3 w-3 text-purple-600 mr-1" />
+                      <span className="text-xs text-purple-600 font-medium">Cajero</span>
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
@@ -175,7 +243,7 @@ const CashierManagement: React.FC = () => {
                       {cashier.isActive ? 'Activo' : 'Inactivo'}
                     </p>
                     <p className="text-sm text-gray-500">
-                      {cashier.isActive ? 'Operativo' : 'Suspendido'}
+                      {cashier.isActive ? 'Puede ingresar' : 'Acceso bloqueado'}
                     </p>
                   </div>
                   <Switch
@@ -194,7 +262,7 @@ const CashierManagement: React.FC = () => {
           <CardContent className="text-center py-8">
             <User className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <p className="text-gray-500">No hay cajeros registrados</p>
-            <p className="text-gray-400 text-sm">Agrega tu primer cajero usando el botón de arriba</p>
+            <p className="text-gray-400 text-sm">Registra tu primer cajero usando el botón de arriba</p>
           </CardContent>
         </Card>
       )}
