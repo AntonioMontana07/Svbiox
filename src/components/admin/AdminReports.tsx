@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FileText, Download, CalendarIcon, User, Activity } from 'lucide-react';
+import { FileText, Download, CalendarIcon, User, Activity, Trophy, Crown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -33,7 +33,8 @@ const AdminReports: React.FC = () => {
     totalPurchaseAmount: 0,
     salesByDay: [],
     salesByCashier: [],
-    purchasesByCashier: []
+    purchasesByCashier: [],
+    topCashier: null as { name: string; sales: number; revenue: number } | null
   });
 
   useEffect(() => {
@@ -123,6 +124,13 @@ const AdminReports: React.FC = () => {
       };
     }).filter(item => item.purchases > 0);
 
+    // Encontrar el cajero con más ventas
+    const topCashier = salesByCashier.length > 0 
+      ? salesByCashier.reduce((prev, current) => 
+          (prev.sales > current.sales) ? prev : current
+        )
+      : null;
+
     setReportData({
       totalSales,
       totalRevenue,
@@ -130,7 +138,8 @@ const AdminReports: React.FC = () => {
       totalPurchaseAmount,
       salesByDay,
       salesByCashier,
-      purchasesByCashier
+      purchasesByCashier,
+      topCashier
     });
   };
 
@@ -282,6 +291,43 @@ const AdminReports: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cajero destacado */}
+      {reportData.topCashier && startDate && endDate && (
+        <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-orange-700">
+              <Crown className="h-5 w-5" />
+              <span>Cajero del Período</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
+                  <Trophy className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <div className="text-lg font-bold text-orange-800">
+                    {reportData.topCashier.name}
+                  </div>
+                  <div className="text-sm text-orange-600">
+                    Cajero con más ventas en el período
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-2xl font-bold text-orange-700">
+                  {reportData.topCashier.sales} ventas
+                </div>
+                <div className="text-sm text-orange-600">
+                  ${reportData.topCashier.revenue.toLocaleString()} en ingresos
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pestañas para diferentes reportes */}
       <Tabs defaultValue="charts" className="space-y-4">
