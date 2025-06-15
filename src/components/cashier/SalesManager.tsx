@@ -5,20 +5,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Plus, ShoppingBag } from 'lucide-react';
+import { TrendingUp, Plus, ShoppingBag, Trash2, ShoppingCart } from 'lucide-react';
 import { database, Product, Sale } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+interface CartItem {
+  productId: number;
+  productName: string;
+  quantity: number;
+  salePrice: number;
+  availableStock: number;
+  total: number;
+}
 
 const SalesManager: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [saleForm, setSaleForm] = useState({
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [itemForm, setItemForm] = useState({
     productId: '',
     quantity: '',
     salePrice: ''
@@ -41,8 +50,8 @@ const SalesManager: React.FC = () => {
     }
   };
 
-  const handleSale = async () => {
-    if (!saleForm.productId || !saleForm.quantity || !saleForm.salePrice) {
+  const addToCart = () => {
+    if (!itemForm.productId || !itemForm.quantity || !itemForm.salePrice) {
       toast({
         title: "Error",
         description: "Producto, cantidad y precio de venta son requeridos",
@@ -51,7 +60,7 @@ const SalesManager: React.FC = () => {
       return;
     }
 
-    const product = products.find(p => p.id?.toString() === saleForm.productId);
+    const product = products.find(p => p.id?.toString() === itemForm.productId);
     if (!product) {
       toast({
         title: "Error",
@@ -61,50 +70,139 @@ const SalesManager: React.FC = () => {
       return;
     }
 
-    const quantity = parseInt(saleForm.quantity);
-    const salePrice = parseFloat(saleForm.salePrice);
+    const quantity = parseInt(itemForm.quantity);
+    const salePrice = parseFloat(itemForm.salePrice);
 
-    if (quantity > product.currentStock) {
+    // Verificar si el producto ya está en el carrito
+    const existingItemIndex = cart.findIndex(item => item.productId === product.id);
+    const existingQuantity = existingItemIndex >= 0 ? cart[existingItemIndex].quantity : 0;
+    const totalQuantity = existingQuantity + quantity;
+
+    if (totalQuantity > product.currentStock) {
       toast({
         title: "Error",
-        description: `Stock insuficiente. Solo hay ${product.currentStock} unidades disponibles`,
+        description: `Stock insuficiente. Solo hay ${product.currentStock} unidades disponibles${existingQuantity > 0 ? ` (ya tienes ${existingQuantity} en el carrito)` : ''}`,
         variant: "destructive"
       });
       return;
     }
 
-    const total = quantity * salePrice;
+    const newItem: CartItem = {
+      productId: product.id!,
+      productName: product.name,
+      quantity,
+      salePrice,
+      availableStock: product.currentStock,
+      total: quantity * salePrice
+    };
+
+    if (existingItemIndex >= 0) {
+      // Actualizar item existente
+      const updatedCart = [...cart];
+      updatedCart[existingItemIndex] = {
+        ...updatedCart[existingItemIndex],
+        quantity: totalQuantity,
+        salePrice, // Actualizar precio también
+        total: totalQuantity * salePrice
+      };
+      setCart(updatedCart);
+    } else {
+      // Agregar nuevo item
+      setCart([...cart, newItem]);
+    }
+
+    setItemForm({ productId: '', quantity: '', salePrice: '' });
+    
+    toast({
+      title: "Producto agregado",
+      description: `${quantity} ${product.name} agregado al carrito`
+    });
+  };
+
+  const removeFromCart = (productId: number) => {
+    setCart(cart.filter(item => item.productId !== productId));
+    toast({
+      title: "Producto removido",
+      description: "Producto removido del carrito"
+    });
+  };
+
+  const updateCartItem = (productId: number, field: 'quantity' | 'salePrice', value: string) => {
+    const updatedCart = cart.map(item => {
+      if (item.productId === productId) {
+        const numValue = parseFloat(value) || 0;
+        
+        if (field === 'quantity') {
+          if (numValue > item.availableStock) {
+            toast({
+              title: "Error",
+              description: `Stock insuficiente. Solo hay ${item.availableStock} unidades disponibles`,
+              variant: "destructive"
+            });
+            return item;
+          }
+          return {
+            ...item,
+            quantity: numValue,
+            total: numValue * item.salePrice
+          };
+        } else {
+          return {
+            ...item,
+            salePrice: numValue,
+            total: item.quantity * numValue
+          };
+        }
+      }
+      return item;
+    });
+    setCart(updatedCart);
+  };
+
+  const processSale = async () => {
+    if (cart.length === 0) {
+      toast({
+        title: "Error",
+        description: "El carrito está vacío",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const totalSale = cart.reduce((sum, item) => sum + item.total, 0);
 
     try {
-      await database.createSale({
-        productId: product.id!,
-        productName: product.name,
-        quantity,
-        salePrice,
-        total,
-        cashierId: user?.id || 0,
-        date: new Date()
-      });
+      // Procesar cada item del carrito como una venta individual
+      for (const item of cart) {
+        await database.createSale({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity,
+          salePrice: item.salePrice,
+          total: item.total,
+          cashierId: user?.id || 0,
+          date: new Date()
+        });
+      }
 
       toast({
-        title: "Venta registrada",
-        description: `Venta de ${quantity} ${product.name} por S/ ${total.toFixed(2)} registrada exitosamente. Inventario actualizado.`
+        title: "Venta procesada exitosamente",
+        description: `Venta total por S/ ${totalSale.toFixed(2)} registrada. ${cart.length} productos vendidos. Inventario actualizado.`
       });
 
-      setSaleForm({ productId: '', quantity: '', salePrice: '' });
+      setCart([]);
       loadData();
     } catch (error) {
       toast({
         title: "Error",
-        description: "No se pudo registrar la venta",
+        description: "No se pudo procesar la venta",
         variant: "destructive"
       });
     }
   };
 
-  const selectedProduct = products.find(p => p.id?.toString() === saleForm.productId);
-  const calculatedTotal = saleForm.quantity && saleForm.salePrice ? 
-    (parseInt(saleForm.quantity) * parseFloat(saleForm.salePrice)).toFixed(2) : '0.00';
+  const selectedProduct = products.find(p => p.id?.toString() === itemForm.productId);
+  const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
 
   return (
     <div className="space-y-6">
@@ -112,19 +210,19 @@ const SalesManager: React.FC = () => {
         <h2 className="text-2xl font-bold text-gray-900">Gestión de Ventas</h2>
       </div>
 
-      {/* Formulario de venta */}
+      {/* Formulario para agregar productos al carrito */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center">
             <Plus className="mr-2 h-5 w-5" />
-            Registrar Nueva Venta
+            Agregar Producto a la Venta
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
               <Label htmlFor="product">Producto</Label>
-              <Select value={saleForm.productId} onValueChange={(value) => setSaleForm({...saleForm, productId: value})}>
+              <Select value={itemForm.productId} onValueChange={(value) => setItemForm({...itemForm, productId: value})}>
                 <SelectTrigger>
                   <SelectValue placeholder="Seleccionar producto" />
                 </SelectTrigger>
@@ -149,38 +247,107 @@ const SalesManager: React.FC = () => {
                 type="number"
                 min="1"
                 max={selectedProduct?.currentStock || 0}
-                value={saleForm.quantity}
-                onChange={(e) => setSaleForm({...saleForm, quantity: e.target.value})}
-                placeholder="Cantidad a vender"
+                value={itemForm.quantity}
+                onChange={(e) => setItemForm({...itemForm, quantity: e.target.value})}
+                placeholder="Cantidad"
               />
             </div>
             <div>
-              <Label htmlFor="salePrice">Precio de Venta (Unitario) - S/</Label>
+              <Label htmlFor="salePrice">Precio Unitario - S/</Label>
               <Input
                 id="salePrice"
                 type="number"
                 step="0.01"
                 min="0"
-                value={saleForm.salePrice}
-                onChange={(e) => setSaleForm({...saleForm, salePrice: e.target.value})}
-                placeholder="Precio por unidad en soles"
+                value={itemForm.salePrice}
+                onChange={(e) => setItemForm({...itemForm, salePrice: e.target.value})}
+                placeholder="Precio por unidad"
               />
             </div>
-            <div>
-              <Label>Total de la Venta</Label>
-              <div className="p-2 bg-green-50 rounded-md border">
-                <span className="text-lg font-bold text-green-700">
-                  S/ {calculatedTotal}
-                </span>
-              </div>
+            <div className="flex items-end">
+              <Button onClick={addToCart} className="w-full bg-green-600 hover:bg-green-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar al Carrito
+              </Button>
             </div>
           </div>
-          <Button onClick={handleSale} className="w-full bg-blue-600 hover:bg-blue-700">
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Registrar Venta (Actualiza Inventario Global)
-          </Button>
         </CardContent>
       </Card>
+
+      {/* Carrito de compras */}
+      {cart.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <ShoppingCart className="mr-2 h-5 w-5" />
+                Carrito de Venta ({cart.length} productos)
+              </div>
+              <div className="text-lg font-bold text-green-700">
+                Total: S/ {cartTotal.toFixed(2)}
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Precio Unit.</TableHead>
+                  <TableHead>Subtotal</TableHead>
+                  <TableHead>Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {cart.map((item) => (
+                  <TableRow key={item.productId}>
+                    <TableCell>{item.productName}</TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        min="1"
+                        max={item.availableStock}
+                        value={item.quantity}
+                        onChange={(e) => updateCartItem(item.productId, 'quantity', e.target.value)}
+                        className="w-20"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={item.salePrice}
+                        onChange={(e) => updateCartItem(item.productId, 'salePrice', e.target.value)}
+                        className="w-24"
+                      />
+                    </TableCell>
+                    <TableCell className="font-bold">
+                      S/ {item.total.toFixed(2)}
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => removeFromCart(item.productId)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <div className="mt-4 flex justify-end">
+              <Button onClick={processSale} className="bg-blue-600 hover:bg-blue-700" size="lg">
+                <TrendingUp className="mr-2 h-4 w-4" />
+                Procesar Venta - S/ {cartTotal.toFixed(2)}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Historial de ventas */}
       <Card>
