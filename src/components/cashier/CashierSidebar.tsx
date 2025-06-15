@@ -13,7 +13,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, Package, ShoppingCart, TrendingUp, Plus, LogOut } from 'lucide-react';
+import { Home, Package, ShoppingCart, TrendingUp, Plus, LogOut, FileText } from 'lucide-react';
 
 interface CashierSidebarProps {
   activeTab: string;
@@ -53,6 +53,12 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({ activeTab, onTabChange 
       title: 'Ventas',
       icon: TrendingUp,
       description: 'Registrar ventas'
+    },
+    {
+      id: 'reports',
+      title: 'Reportes',
+      icon: FileText,
+      description: 'Ver mis reportes'
     }
   ];
 

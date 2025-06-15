@@ -3,12 +3,13 @@ import React, { useState } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, TrendingUp, Plus } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, FileText } from 'lucide-react';
 import CashierSidebar from './CashierSidebar';
 import CashierInventory from './CashierInventory';
 import PurchaseManager from './PurchaseManager';
 import SalesManager from './SalesManager';
 import ProductManager from './ProductManager';
+import CashierReports from './CashierReports';
 
 const CashierDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('summary');
@@ -23,6 +24,8 @@ const CashierDashboard: React.FC = () => {
         return <SalesManager />;
       case 'products':
         return <ProductManager />;
+      case 'reports':
+        return <CashierReports />;
       default:
         return (
           <div className="space-y-6">
@@ -82,7 +85,7 @@ const CashierDashboard: React.FC = () => {
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -127,6 +130,26 @@ const CashierDashboard: React.FC = () => {
                   </div>
                   <p className="text-sm text-gray-600">
                     Gestiona el stock mediante compras y ventas
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <FileText className="mr-2 h-5 w-5" />
+                    Reportes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    className="w-full bg-orange-600 hover:bg-orange-700"
+                    onClick={() => setActiveTab('reports')}
+                  >
+                    Ver Mis Reportes
+                  </Button>
+                  <p className="text-sm text-gray-600">
+                    Consulta tus ventas y compras por fechas
                   </p>
                 </CardContent>
               </Card>
