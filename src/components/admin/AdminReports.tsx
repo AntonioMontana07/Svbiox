@@ -3,13 +3,17 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FileText, Download, Calendar, User, Activity } from 'lucide-react';
+import { FileText, Download, CalendarIcon, User, Activity } from 'lucide-react';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import { database, Sale, Purchase, User as UserType, ActivityLog } from '@/lib/database';
 
 const AdminReports: React.FC = () => {
@@ -17,9 +21,9 @@ const AdminReports: React.FC = () => {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [cashiers, setCashiers] = useState<UserType[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
+  const [startDate, setStartDate] = useState<Date>();
+  const [endDate, setEndDate] = useState<Date>();
   const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
     cashierId: ''
   });
   const [reportData, setReportData] = useState({
@@ -38,7 +42,7 @@ const AdminReports: React.FC = () => {
 
   useEffect(() => {
     generateReport();
-  }, [sales, purchases, filters]);
+  }, [sales, purchases, startDate, endDate, filters]);
 
   const loadInitialData = async () => {
     try {
@@ -60,14 +64,14 @@ const AdminReports: React.FC = () => {
   const applyDateFilter = (items: any[]) => {
     let filtered = items;
     
-    if (filters.startDate) {
+    if (startDate) {
       filtered = filtered.filter(item => 
-        new Date(item.date) >= new Date(filters.startDate)
+        new Date(item.date) >= startDate
       );
     }
-    if (filters.endDate) {
+    if (endDate) {
       filtered = filtered.filter(item => 
-        new Date(item.date) <= new Date(filters.endDate)
+        new Date(item.date) <= endDate
       );
     }
     if (filters.cashierId) {
@@ -89,7 +93,6 @@ const AdminReports: React.FC = () => {
     const totalPurchases = filteredPurchases.length;
     const totalPurchaseAmount = filteredPurchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0);
 
-    // Ventas por día
     const salesByDay = filteredSales.reduce((acc: any, sale) => {
       const date = new Date(sale.date).toLocaleDateString();
       const existing = acc.find((item: any) => item.date === date);
@@ -102,7 +105,6 @@ const AdminReports: React.FC = () => {
       return acc;
     }, []).slice(-7);
 
-    // Ventas por cajero
     const salesByCashier = cashiers.map(cashier => {
       const cashierSales = filteredSales.filter(sale => sale.cashierId === cashier.id);
       return {
@@ -112,7 +114,6 @@ const AdminReports: React.FC = () => {
       };
     }).filter(item => item.sales > 0);
 
-    // Compras por cajero
     const purchasesByCashier = cashiers.map(cashier => {
       const cashierPurchases = filteredPurchases.filter(purchase => purchase.cashierId === cashier.id);
       return {
@@ -134,7 +135,9 @@ const AdminReports: React.FC = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ startDate: '', endDate: '', cashierId: '' });
+    setStartDate(undefined);
+    setEndDate(undefined);
+    setFilters({ cashierId: '' });
   };
 
   const COLORS = ['#8B5CF6', '#6B7280', '#10B981', '#F59E0B', '#EF4444'];
@@ -160,29 +163,65 @@ const AdminReports: React.FC = () => {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="startDate" className="flex items-center space-x-1">
-                <Calendar className="h-4 w-4" />
+              <Label className="flex items-center space-x-1">
+                <CalendarIcon className="h-4 w-4" />
                 <span>Fecha Inicio</span>
               </Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={filters.startDate}
-                onChange={(e) => setFilters({...filters, startDate: e.target.value})}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !startDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {startDate ? format(startDate, "PPP", { locale: es }) : "Seleccionar fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={startDate}
+                    onSelect={setStartDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+
             <div>
-              <Label htmlFor="endDate" className="flex items-center space-x-1">
-                <Calendar className="h-4 w-4" />
+              <Label className="flex items-center space-x-1">
+                <CalendarIcon className="h-4 w-4" />
                 <span>Fecha Fin</span>
               </Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={filters.endDate}
-                onChange={(e) => setFilters({...filters, endDate: e.target.value})}
-              />
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full justify-start text-left font-normal",
+                      !endDate && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {endDate ? format(endDate, "PPP", { locale: es }) : "Seleccionar fecha"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={endDate}
+                    onSelect={setEndDate}
+                    initialFocus
+                    className="pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
             </div>
+
             <div>
               <Label className="flex items-center space-x-1">
                 <User className="h-4 w-4" />
@@ -202,6 +241,7 @@ const AdminReports: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="flex items-end">
               <Button onClick={clearFilters} variant="outline" className="w-full">
                 Limpiar Filtros
