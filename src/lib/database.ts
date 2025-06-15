@@ -1,3 +1,4 @@
+
 import Dexie, { Table } from 'dexie';
 
 export interface Product {
@@ -7,6 +8,8 @@ export interface Product {
   imageUrl: string;
   price: number;
   currentStock: number;
+  minStock: number; // Adding missing minStock property
+  createdBy?: string; // Adding createdBy property
 }
 
 export interface User {
@@ -15,6 +18,8 @@ export interface User {
   fullName: string;
   role: 'admin' | 'cashier';
   passwordHash: string;
+  email?: string; // Adding missing email property
+  isActive?: boolean; // Adding missing isActive property
 }
 
 export interface Sale {
@@ -23,14 +28,26 @@ export interface Sale {
   productName: string;
   quantity: number;
   salePrice: number;
-  subtotal: number; // Nuevo: precio sin IGV
-  igv: number; // Nuevo: monto del IGV
+  subtotal: number;
+  igv: number;
   total: number;
-  paymentMethod: 'efectivo' | 'tarjeta' | 'yape'; // Nuevo
-  amountReceived?: number; // Nuevo: solo para efectivo
-  change?: number; // Nuevo: vuelto para efectivo
+  paymentMethod: 'efectivo' | 'tarjeta' | 'yape';
+  amountReceived?: number;
+  change?: number;
   cashierId: number;
   date: Date;
+}
+
+export interface Purchase {
+  id?: number;
+  productId: number;
+  productName: string;
+  quantity: number;
+  purchasePrice: number;
+  supplierId?: number;
+  supplierName?: string;
+  date: Date;
+  cashierId: number;
 }
 
 export interface InventoryLog {
@@ -56,15 +73,17 @@ export class MyDatabase extends Dexie {
   products!: Table<Product>;
   users!: Table<User>;
   sales!: Table<Sale>;
+  purchases!: Table<Purchase>;
   inventoryLogs!: Table<InventoryLog>;
   suppliers!: Table<Supplier>;
 
   constructor() {
     super('BioxDB');
-    this.version(3).stores({
-      products: '++id, name, price, currentStock',
-      users: '++id, username, fullName, role, passwordHash',
-      sales: '++id, productId, productName, quantity, salePrice, total, cashierId, date',
+    this.version(4).stores({
+      products: '++id, name, price, currentStock, minStock',
+      users: '++id, username, fullName, role, passwordHash, email, isActive',
+      sales: '++id, productId, productName, quantity, salePrice, total, cashierId, date, paymentMethod',
+      purchases: '++id, productId, productName, quantity, purchasePrice, supplierId, cashierId, date',
       inventoryLogs: '++id, productId, productName, date, changeInStock, newStockLevel, description',
       suppliers: '++id, name, contactName, contactEmail, contactPhone, address'
     });
@@ -82,9 +101,14 @@ export const database = {
     return this.db;
   },
 
+  // Product methods
   async createProduct(product: Omit<Product, 'id'>): Promise<number> {
     const db = await this.getDB();
     return await db.products.add(product);
+  },
+
+  async addProduct(product: Omit<Product, 'id'>): Promise<number> {
+    return await this.createProduct(product);
   },
 
   async getProductById(id: number): Promise<Product | undefined> {
@@ -107,9 +131,25 @@ export const database = {
     await db.products.delete(id);
   },
 
+  async getLowStockProducts(): Promise<Product[]> {
+    const db = await this.getDB();
+    return await db.products.where('currentStock').belowOrEqual(db.products.schema.indexes.find(i => i.name === 'minStock')?.keyPath || 0).toArray();
+  },
+
+  async getCriticalStockAlerts(): Promise<Product[]> {
+    const db = await this.getDB();
+    const products = await db.products.toArray();
+    return products.filter(product => product.currentStock <= product.minStock);
+  },
+
+  // User methods
   async createUser(user: Omit<User, 'id'>): Promise<number> {
     const db = await this.getDB();
     return await db.users.add(user);
+  },
+
+  async addUser(user: Omit<User, 'id'>): Promise<number> {
+    return await this.createUser(user);
   },
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -127,9 +167,19 @@ export const database = {
     return await db.users.toArray();
   },
 
+  async getAllCashiers(): Promise<User[]> {
+    const db = await this.getDB();
+    return await db.users.where({ role: 'cashier' }).toArray();
+  },
+
   async updateUser(id: number, updates: Partial<User>): Promise<void> {
     const db = await this.getDB();
     await db.users.update(id, updates);
+  },
+
+  async updateCashierStatus(id: number, isActive: boolean): Promise<void> {
+    const db = await this.getDB();
+    await db.users.update(id, { isActive });
   },
 
   async deleteUser(id: number): Promise<void> {
@@ -137,6 +187,7 @@ export const database = {
     await db.users.delete(id);
   },
 
+  // Sale methods
   async createSale(sale: Omit<Sale, 'id' | 'subtotal' | 'igv' | 'change'>): Promise<number> {
     const db = await this.getDB();
     
@@ -182,9 +233,19 @@ export const database = {
     return saleId;
   },
 
+  async getAllSales(): Promise<Sale[]> {
+    const db = await this.getDB();
+    return await db.sales.toArray();
+  },
+
   async getSalesByUser(userId: number): Promise<Sale[]> {
     const db = await this.getDB();
     return await db.sales.where({ cashierId: userId }).toArray();
+  },
+
+  async getSalesByDateRange(startDate: Date, endDate: Date): Promise<Sale[]> {
+    const db = await this.getDB();
+    return await db.sales.where('date').between(startDate, endDate).toArray();
   },
 
   async deleteSale(saleId: number): Promise<void> {
@@ -218,16 +279,6 @@ export const database = {
     });
   },
 
-  async createInventoryLog(log: Omit<InventoryLog, 'id'>): Promise<number> {
-    const db = await this.getDB();
-    return await db.inventoryLogs.add(log);
-  },
-
-  async getInventoryLogsByProduct(productId: number): Promise<InventoryLog[]> {
-    const db = await this.getDB();
-    return await db.inventoryLogs.where({ productId: productId }).toArray();
-  },
-
   async getSaleById(saleId: number): Promise<Sale | null> {
     const db = await this.getDB();
     const transaction = db.transaction(['sales'], 'readonly');
@@ -240,28 +291,51 @@ export const database = {
     });
   },
 
-    async createSupplier(supplier: Omit<Supplier, 'id'>): Promise<number> {
-        const db = await this.getDB();
-        return await db.suppliers.add(supplier);
-    },
+  // Purchase methods
+  async getAllPurchases(): Promise<Purchase[]> {
+    const db = await this.getDB();
+    return await db.purchases.toArray();
+  },
 
-    async getSupplierById(id: number): Promise<Supplier | undefined> {
-        const db = await this.getDB();
-        return await db.suppliers.get(id);
-    },
+  async getPurchasesByDateRange(startDate: Date, endDate: Date): Promise<Purchase[]> {
+    const db = await this.getDB();
+    return await db.purchases.where('date').between(startDate, endDate).toArray();
+  },
 
-    async getAllSuppliers(): Promise<Supplier[]> {
-        const db = await this.getDB();
-        return await db.suppliers.toArray();
-    },
+  // Inventory log methods
+  async createInventoryLog(log: Omit<InventoryLog, 'id'>): Promise<number> {
+    const db = await this.getDB();
+    return await db.inventoryLogs.add(log);
+  },
 
-    async updateSupplier(id: number, updates: Partial<Supplier>): Promise<void> {
-        const db = await this.getDB();
-        await db.suppliers.update(id, updates);
-    },
+  async getInventoryLogsByProduct(productId: number): Promise<InventoryLog[]> {
+    const db = await this.getDB();
+    return await db.inventoryLogs.where({ productId: productId }).toArray();
+  },
 
-    async deleteSupplier(id: number): Promise<void> {
-        const db = await this.getDB();
-        await db.suppliers.delete(id);
-    },
+  // Supplier methods
+  async createSupplier(supplier: Omit<Supplier, 'id'>): Promise<number> {
+    const db = await this.getDB();
+    return await db.suppliers.add(supplier);
+  },
+
+  async getSupplierById(id: number): Promise<Supplier | undefined> {
+    const db = await this.getDB();
+    return await db.suppliers.get(id);
+  },
+
+  async getAllSuppliers(): Promise<Supplier[]> {
+    const db = await this.getDB();
+    return await db.suppliers.toArray();
+  },
+
+  async updateSupplier(id: number, updates: Partial<Supplier>): Promise<void> {
+    const db = await this.getDB();
+    await db.suppliers.update(id, updates);
+  },
+
+  async deleteSupplier(id: number): Promise<void> {
+    const db = await this.getDB();
+    await db.suppliers.delete(id);
+  },
 };
