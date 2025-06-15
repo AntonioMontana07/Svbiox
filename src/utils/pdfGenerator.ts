@@ -45,25 +45,29 @@ export const generateSalesPDF = (sale: Sale, user: User | null) => {
   doc.text(sale.productName, 50, 125);
   doc.text(`S/ ${sale.salePrice.toFixed(2)}`, 150, 125);
   
-  // Calculate totals
-  const subtotal = sale.total / 1.18; // Assuming 18% IGV
-  const igv = sale.total - subtotal;
-  
   // Draw line before totals
   doc.line(20, 135, 190, 135);
   
   // Totals
-  doc.text(`Subtotal: S/ ${subtotal.toFixed(2)}`, 130, 145);
-  doc.text(`IGV: S/ ${igv.toFixed(2)}`, 130, 150);
+  doc.text(`Subtotal: S/ ${sale.subtotal.toFixed(2)}`, 130, 145);
+  doc.text(`IGV: S/ ${sale.igv.toFixed(2)}`, 130, 150);
   
   doc.setFont('helvetica', 'bold');
   doc.text(`Total: S/ ${sale.total.toFixed(2)}`, 130, 155);
   
   // Payment info
   doc.setFont('helvetica', 'normal');
-  doc.text('FORMA DE PAGO:', 20, 170);
-  doc.text('RECIBIDO:', 20, 175);
-  doc.text('DEVOLUCION:', 20, 180);
+  const paymentMethodText = sale.paymentMethod === 'efectivo' ? 'EFECTIVO' : 
+                           sale.paymentMethod === 'tarjeta' ? 'TARJETA' : 'YAPE';
+  doc.text(`FORMA DE PAGO: ${paymentMethodText}`, 20, 170);
+  
+  if (sale.paymentMethod === 'efectivo' && sale.amountReceived) {
+    doc.text(`RECIBIDO: S/ ${sale.amountReceived.toFixed(2)}`, 20, 175);
+    doc.text(`DEVOLUCION: S/ ${(sale.change || 0).toFixed(2)}`, 20, 180);
+  } else {
+    doc.text('RECIBIDO: -', 20, 175);
+    doc.text('DEVOLUCION: -', 20, 180);
+  }
   
   // QR Code placeholder
   doc.text('Representación de Pagina web QR', 20, 200);

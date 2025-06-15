@@ -27,6 +27,8 @@ const SalesManager: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'yape'>('efectivo');
+  const [amountReceived, setAmountReceived] = useState('');
   const [itemForm, setItemForm] = useState({
     productId: '',
     quantity: '',
@@ -171,6 +173,19 @@ const SalesManager: React.FC = () => {
 
     const totalSale = cart.reduce((sum, item) => sum + item.total, 0);
 
+    // Validar efectivo
+    if (paymentMethod === 'efectivo') {
+      const received = parseFloat(amountReceived);
+      if (!received || received < totalSale) {
+        toast({
+          title: "Error",
+          description: "El monto recibido debe ser mayor o igual al total de la venta",
+          variant: "destructive"
+        });
+        return;
+      }
+    }
+
     try {
       // Procesar cada item del carrito como una venta individual
       for (const item of cart) {
@@ -180,17 +195,25 @@ const SalesManager: React.FC = () => {
           quantity: item.quantity,
           salePrice: item.salePrice,
           total: item.total,
+          paymentMethod,
+          amountReceived: paymentMethod === 'efectivo' ? parseFloat(amountReceived) : undefined,
           cashierId: user?.id || 0,
-          date: new Date()
+          date: new Date(),
+          subtotal: 0, // Se calculará en createSale
+          igv: 0 // Se calculará en createSale
         });
       }
 
+      const change = paymentMethod === 'efectivo' ? parseFloat(amountReceived) - totalSale : 0;
+      
       toast({
         title: "Venta procesada exitosamente",
-        description: `Venta total por S/ ${totalSale.toFixed(2)} registrada. ${cart.length} productos vendidos. Inventario actualizado.`
+        description: `Venta total por S/ ${totalSale.toFixed(2)} registrada. ${cart.length} productos vendidos.${paymentMethod === 'efectivo' ? ` Cambio: S/ ${change.toFixed(2)}` : ''}`
       });
 
       setCart([]);
+      setPaymentMethod('efectivo');
+      setAmountReceived('');
       loadData();
     } catch (error) {
       toast({
@@ -236,6 +259,8 @@ const SalesManager: React.FC = () => {
 
   const selectedProduct = products.find(p => p.id?.toString() === itemForm.productId);
   const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
+  const cartSubtotal = cartTotal / 1.18;
+  const cartIGV = cartTotal - cartSubtotal;
 
   return (
     <div className="space-y-6">
@@ -321,7 +346,8 @@ const SalesManager: React.FC = () => {
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {/* Tabla de productos */}
             <Table>
               <TableHeader>
                 <TableRow>
@@ -372,7 +398,62 @@ const SalesManager: React.FC = () => {
                 ))}
               </TableBody>
             </Table>
-            <div className="mt-4 flex justify-end">
+            
+            {/* Totales */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <div className="flex justify-between items-center text-sm">
+                <span>Subtotal:</span>
+                <span>S/ {cartSubtotal.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span>IGV (18%):</span>
+                <span>S/ {cartIGV.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center font-bold text-lg border-t pt-2 mt-2">
+                <span>Total:</span>
+                <span>S/ {cartTotal.toFixed(2)}</span>
+              </div>
+            </div>
+
+            {/* Método de pago */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="paymentMethod">Método de Pago</Label>
+                <Select value={paymentMethod} onValueChange={(value: 'efectivo' | 'tarjeta' | 'yape') => setPaymentMethod(value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar método de pago" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="efectivo">Efectivo</SelectItem>
+                    <SelectItem value="tarjeta">Tarjeta</SelectItem>
+                    <SelectItem value="yape">Yape</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Campo para efectivo */}
+              {paymentMethod === 'efectivo' && (
+                <div>
+                  <Label htmlFor="amountReceived">Monto Recibido - S/</Label>
+                  <Input
+                    id="amountReceived"
+                    type="number"
+                    step="0.01"
+                    min={cartTotal}
+                    value={amountReceived}
+                    onChange={(e) => setAmountReceived(e.target.value)}
+                    placeholder="Ingrese el monto recibido"
+                  />
+                  {amountReceived && parseFloat(amountReceived) >= cartTotal && (
+                    <p className="text-sm text-green-600 mt-1">
+                      Cambio: S/ {(parseFloat(amountReceived) - cartTotal).toFixed(2)}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end">
               <Button onClick={processSale} className="bg-blue-600 hover:bg-blue-700" size="lg">
                 <TrendingUp className="mr-2 h-4 w-4" />
                 Procesar Venta - S/ {cartTotal.toFixed(2)}
