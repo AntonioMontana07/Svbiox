@@ -19,6 +19,8 @@ const AdminInventory: React.FC = () => {
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
+    imageUrl: '',
+    price: '',
     minStock: '',
     currentStock: ''
   });
@@ -51,6 +53,8 @@ const AdminInventory: React.FC = () => {
       await database.addProduct({
         name: newProduct.name,
         description: newProduct.description,
+        imageUrl: newProduct.imageUrl || '',
+        price: newProduct.price ? parseFloat(newProduct.price) : 0,
         minStock: newProduct.minStock ? parseInt(newProduct.minStock) : 0,
         currentStock: newProduct.currentStock ? parseInt(newProduct.currentStock) : 0,
         createdBy: 'admin'
@@ -61,7 +65,7 @@ const AdminInventory: React.FC = () => {
         description: `${newProduct.name} ha sido agregado al inventario`
       });
 
-      setNewProduct({ name: '', description: '', minStock: '', currentStock: '' });
+      setNewProduct({ name: '', description: '', imageUrl: '', price: '', minStock: '', currentStock: '' });
       setIsAddingProduct(false);
       loadProducts();
     } catch (error) {
@@ -175,6 +179,9 @@ const AdminInventory: React.FC = () => {
                         <span className="text-sm text-gray-500">
                           Stock mínimo: <strong>{product.minStock}</strong>
                         </span>
+                        <span className="text-sm text-gray-500">
+                          Precio: <strong>S/ {product.price.toFixed(2)}</strong>
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -242,6 +249,18 @@ const AdminInventory: React.FC = () => {
                 placeholder="Descripción del producto"
               />
             </div>
+            <div>
+              <Label htmlFor="price">Precio - S/ (Opcional)</Label>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                min="0"
+                value={newProduct.price}
+                onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
+                placeholder="0.00"
+              />
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="minStock">Stock Mínimo (Opcional)</Label>
@@ -295,6 +314,17 @@ const AdminInventory: React.FC = () => {
                   value={editingProduct.description || ''}
                   onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
                   placeholder="Descripción del producto"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-price">Precio - S/</Label>
+                <Input
+                  id="edit-price"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={editingProduct.price}
+                  onChange={(e) => setEditingProduct({...editingProduct, price: parseFloat(e.target.value) || 0})}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">

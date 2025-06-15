@@ -17,9 +17,11 @@ const ProductManager: React.FC = () => {
   const [isAddingProduct, setIsAddingProduct] = useState(false);
   const [newProduct, setNewProduct] = useState({
     name: '',
+    description: '',
+    imageUrl: '',
+    price: '',
     minStock: '',
-    currentStock: '',
-    description: ''
+    currentStock: ''
   });
 
   const handleAddProduct = async () => {
@@ -35,9 +37,11 @@ const ProductManager: React.FC = () => {
     try {
       await database.addProduct({
         name: newProduct.name,
+        description: newProduct.description || '',
+        imageUrl: newProduct.imageUrl || '',
+        price: newProduct.price ? parseFloat(newProduct.price) : 0,
         minStock: parseInt(newProduct.minStock),
         currentStock: newProduct.currentStock ? parseInt(newProduct.currentStock) : 0,
-        description: newProduct.description || '',
         createdBy: user?.username || 'cajero'
       });
 
@@ -46,7 +50,7 @@ const ProductManager: React.FC = () => {
         description: `${newProduct.name} ha sido agregado al inventario`
       });
 
-      setNewProduct({ name: '', minStock: '', currentStock: '', description: '' });
+      setNewProduct({ name: '', description: '', imageUrl: '', price: '', minStock: '', currentStock: '' });
       setIsAddingProduct(false);
     } catch (error) {
       toast({
@@ -84,6 +88,18 @@ const ProductManager: React.FC = () => {
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
                     placeholder="Nombre del producto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="price">Precio - S/ (Opcional)</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
+                    placeholder="0.00"
                   />
                 </div>
                 <div>
@@ -134,7 +150,7 @@ const ProductManager: React.FC = () => {
           <h4 className="font-medium text-blue-900 mb-2">Importante:</h4>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• El nombre y stock mínimo son obligatorios</li>
-            <li>• El stock inicial es opcional (por defecto será 0)</li>
+            <li>• El precio y stock inicial son opcionales (por defecto será 0)</li>
             <li>• Los productos se comparten entre todos los cajeros</li>
             <li>• Las alertas aparecen cuando el stock actual ≤ stock mínimo</li>
           </ul>

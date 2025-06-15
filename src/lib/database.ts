@@ -8,8 +8,8 @@ export interface Product {
   imageUrl: string;
   price: number;
   currentStock: number;
-  minStock: number; // Adding missing minStock property
-  createdBy?: string; // Adding createdBy property
+  minStock: number;
+  createdBy?: string;
 }
 
 export interface User {
@@ -18,8 +18,8 @@ export interface User {
   fullName: string;
   role: 'admin' | 'cashier';
   passwordHash: string;
-  email?: string; // Adding missing email property
-  isActive?: boolean; // Adding missing isActive property
+  email?: string;
+  isActive?: boolean;
 }
 
 export interface Sale {
@@ -48,6 +48,7 @@ export interface Purchase {
   supplierName?: string;
   date: Date;
   cashierId: number;
+  description?: string;
 }
 
 export interface InventoryLog {
@@ -93,6 +94,13 @@ export class MyDatabase extends Dexie {
 export const database = {
   db: null as MyDatabase | null,
 
+  async init(): Promise<void> {
+    if (!this.db) {
+      this.db = new MyDatabase();
+      await this.db.open();
+    }
+  },
+
   async getDB(): Promise<MyDatabase> {
     if (!this.db) {
       this.db = new MyDatabase();
@@ -104,7 +112,12 @@ export const database = {
   // Product methods
   async createProduct(product: Omit<Product, 'id'>): Promise<number> {
     const db = await this.getDB();
-    return await db.products.add(product);
+    const productData = {
+      ...product,
+      imageUrl: product.imageUrl || '',
+      price: product.price || 0
+    };
+    return await db.products.add(productData);
   },
 
   async addProduct(product: Omit<Product, 'id'>): Promise<number> {
@@ -148,8 +161,22 @@ export const database = {
     return await db.users.add(user);
   },
 
-  async addUser(user: Omit<User, 'id'>): Promise<number> {
-    return await this.createUser(user);
+  async addUser(user: Omit<User, 'id'> & { password?: string }): Promise<number> {
+    const userData = {
+      ...user,
+      passwordHash: user.password || user.passwordHash || 'default'
+    };
+    delete (userData as any).password;
+    return await this.createUser(userData);
+  },
+
+  async getUser(username: string, password: string): Promise<User | null> {
+    const db = await this.getDB();
+    const user = await db.users.where({ username: username }).first();
+    if (user && (user.passwordHash === password || password === user.passwordHash)) {
+      return user;
+    }
+    return null;
   },
 
   async getUserByUsername(username: string): Promise<User | undefined> {
@@ -292,9 +319,42 @@ export const database = {
   },
 
   // Purchase methods
+  async createPurchase(purchase: Omit<Purchase, 'id'>): Promise<number> {
+    const db = await this.getDB();
+    
+    const transaction = db.transaction(['purchases', 'products'], 'readwrite');
+    const purchasesStore = transaction.objectStore('purchases');
+    const productsStore = transaction.objectStore('products');
+    
+    // Crear la compra
+    const request = purchasesStore.add(purchase);
+    const purchaseId = await new Promise<number>((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result as number);
+      request.onerror = () => reject(request.error);
+    });
+    
+    // Actualizar el stock del producto
+    const product = await this.getProductById(purchase.productId);
+    if (product) {
+      product.currentStock += purchase.quantity;
+      await new Promise<void>((resolve, reject) => {
+        const updateRequest = productsStore.put(product);
+        updateRequest.onsuccess = () => resolve();
+        updateRequest.onerror = () => reject(updateRequest.error);
+      });
+    }
+    
+    return purchaseId;
+  },
+
   async getAllPurchases(): Promise<Purchase[]> {
     const db = await this.getDB();
     return await db.purchases.toArray();
+  },
+
+  async getPurchasesByUser(userId: number): Promise<Purchase[]> {
+    const db = await this.getDB();
+    return await db.purchases.where({ cashierId: userId }).toArray();
   },
 
   async getPurchasesByDateRange(startDate: Date, endDate: Date): Promise<Purchase[]> {
@@ -338,4 +398,40 @@ export const database = {
     const db = await this.getDB();
     await db.suppliers.delete(id);
   },
+};
+
+// Test data initialization
+export const initializeTestData = async () => {
+  try {
+    await database.init();
+    
+    const existingUsers = await database.getAllUsers();
+    if (existingUsers.length === 0) {
+      // Create admin user
+      await database.addUser({
+        username: 'admin',
+        fullName: 'Administrador',
+        role: 'admin',
+        passwordHash: 'admin123',
+        email: 'admin@biox.com',
+        isActive: true
+      });
+
+      // Create test cashier
+      await database.addUser({
+        username: 'cajero1',
+        fullName: 'Cajero Uno',
+        role: 'cashier',
+        passwordHash: 'cajero123',
+        email: 'cajero1@biox.com',
+        isActive: true
+      });
+
+      console.log('Datos de prueba inicializados correctamente');
+    } else {
+      console.log('Los datos de prueba ya existen');
+    }
+  } catch (error) {
+    console.info('Los datos de prueba ya existen o hubo un error:', error);
+  }
 };
