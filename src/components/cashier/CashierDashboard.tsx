@@ -1,119 +1,140 @@
 
-import React from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import React, { useState } from 'react';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  BarChart3, 
-  Package, 
-  ShoppingCart, 
-  TrendingUp, 
-  LogOut,
-  Receipt
-} from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, DollarSign } from 'lucide-react';
+import CashierSidebar from './CashierSidebar';
+import CashierInventory from './CashierInventory';
+import PurchaseManager from './PurchaseManager';
+import SalesManager from './SalesManager';
 
 const CashierDashboard: React.FC = () => {
-  const { user, logout } = useAuth();
+  const [activeTab, setActiveTab] = useState('summary');
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'inventory':
+        return <CashierInventory />;
+      case 'purchases':
+        return <PurchaseManager />;
+      case 'sales':
+        return <SalesManager />;
+      default:
+        return (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-gray-900">Resumen del Cajero</h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('inventory')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Inventario</CardTitle>
+                  <Package className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">Ver Productos</div>
+                  <p className="text-xs text-muted-foreground">
+                    Consulta el inventario disponible
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('purchases')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Compras</CardTitle>
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">Registrar</div>
+                  <p className="text-xs text-muted-foreground">
+                    Gestiona las compras de productos
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('sales')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Ventas</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">Vender</div>
+                  <p className="text-xs text-muted-foreground">
+                    Registra ventas de productos
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <ShoppingCart className="mr-2 h-5 w-5" />
+                    Acciones Rápidas - Compras
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    className="w-full bg-green-600 hover:bg-green-700"
+                    onClick={() => setActiveTab('purchases')}
+                  >
+                    Registrar Nueva Compra
+                  </Button>
+                  <p className="text-sm text-gray-600">
+                    Agrega productos al inventario registrando compras
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="mr-2 h-5 w-5" />
+                    Acciones Rápidas - Ventas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    className="w-full bg-blue-600 hover:bg-blue-700"
+                    onClick={() => setActiveTab('sales')}
+                  >
+                    Registrar Nueva Venta
+                  </Button>
+                  <p className="text-sm text-gray-600">
+                    Vende productos y actualiza el inventario
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        );
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 to-gray-100">
-      {/* Header */}
-      <header className="bg-white shadow-lg border-b-4 border-purple-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-gray-400 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold text-lg">BIOX+</span>
+      <SidebarProvider>
+        <div className="min-h-screen flex w-full">
+          <CashierSidebar activeTab={activeTab} onTabChange={setActiveTab} />
+          <SidebarInset>
+            <header className="bg-white shadow-lg border-b-4 border-purple-600">
+              <div className="flex items-center gap-2 px-4 py-4">
+                <SidebarTrigger className="-ml-1" />
+                <div className="flex items-center space-x-4">
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-gray-400 rounded-full flex items-center justify-center">
+                    <span className="text-white font-bold text-sm">BIOX+</span>
+                  </div>
+                  <h1 className="text-xl font-bold text-gray-900">Panel de Cajero</h1>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Panel de Cajero</h1>
-                <p className="text-gray-600">Bienvenido, {user?.fullName || user?.username}</p>
-              </div>
-            </div>
-            <Button
-              onClick={logout}
-              variant="outline"
-              className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white"
-            >
-              <LogOut className="mr-2 h-4 w-4" />
-              Cerrar Sesión
-            </Button>
-          </div>
+            </header>
+            <main className="flex-1 p-6">
+              {renderContent()}
+            </main>
+          </SidebarInset>
         </div>
-      </header>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-        <Tabs defaultValue="summary" className="w-full">
-          <TabsList className="grid w-full grid-cols-5 mb-6 bg-white shadow-md">
-            <TabsTrigger value="summary" className="flex items-center space-x-2">
-              <TrendingUp className="h-4 w-4" />
-              <span>Resumen</span>
-            </TabsTrigger>
-            <TabsTrigger value="inventory" className="flex items-center space-x-2">
-              <Package className="h-4 w-4" />
-              <span>Inventario</span>
-            </TabsTrigger>
-            <TabsTrigger value="purchases" className="flex items-center space-x-2">
-              <ShoppingCart className="h-4 w-4" />
-              <span>Compras</span>
-            </TabsTrigger>
-            <TabsTrigger value="sales" className="flex items-center space-x-2">
-              <Receipt className="h-4 w-4" />
-              <span>Ventas</span>
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center space-x-2">
-              <BarChart3 className="h-4 w-4" />
-              <span>Reportes</span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="summary">
-            <div className="text-center py-20">
-              <TrendingUp className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Resumen del Cajero</h3>
-              <p className="text-gray-500">Vista general de tus actividades y métricas</p>
-              <p className="text-sm text-gray-400 mt-2">Próximamente disponible</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="inventory">
-            <div className="text-center py-20">
-              <Package className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Gestión de Inventario</h3>
-              <p className="text-gray-500">Registra y consulta productos del inventario compartido</p>
-              <p className="text-sm text-gray-400 mt-2">Próximamente disponible</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="purchases">
-            <div className="text-center py-20">
-              <ShoppingCart className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Registro de Compras</h3>
-              <p className="text-gray-500">Registra las compras de productos para tu inventario</p>
-              <p className="text-sm text-gray-400 mt-2">Próximamente disponible</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="sales">
-            <div className="text-center py-20">
-              <Receipt className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Punto de Venta</h3>
-              <p className="text-gray-500">Registra ventas y genera recibos para tus clientes</p>
-              <p className="text-sm text-gray-400 mt-2">Próximamente disponible</p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="reports">
-            <div className="text-center py-20">
-              <BarChart3 className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Reportes Personales</h3>
-              <p className="text-gray-500">Visualiza tus métricas de ventas y desempeño</p>
-              <p className="text-sm text-gray-400 mt-2">Próximamente disponible</p>
-            </div>
-          </TabsContent>
-        </Tabs>
-      </main>
+      </SidebarProvider>
     </div>
   );
 };

@@ -132,76 +132,13 @@ const AdminInventory: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Inventario Global</h2>
-        <div className="flex space-x-2">
-          <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
-            <DialogTrigger asChild>
-              <Button className="bg-purple-600 hover:bg-purple-700">
-                <Plus className="mr-2 h-4 w-4" />
-                Agregar Producto
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Agregar Nuevo Producto</DialogTitle>
-              </DialogHeader>
-              <div className="space-y-4 pt-4">
-                <div>
-                  <Label htmlFor="name">Nombre del Producto *</Label>
-                  <Input
-                    id="name"
-                    value={newProduct.name}
-                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                    placeholder="Nombre del producto"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="description">Descripción (Opcional)</Label>
-                  <Textarea
-                    id="description"
-                    value={newProduct.description}
-                    onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                    placeholder="Descripción del producto"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label htmlFor="minStock">Stock Mínimo (Opcional)</Label>
-                    <Input
-                      id="minStock"
-                      type="number"
-                      value={newProduct.minStock}
-                      onChange={(e) => setNewProduct({...newProduct, minStock: e.target.value})}
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="currentStock">Stock Inicial (Opcional)</Label>
-                    <Input
-                      id="currentStock"
-                      type="number"
-                      value={newProduct.currentStock}
-                      onChange={(e) => setNewProduct({...newProduct, currentStock: e.target.value})}
-                      placeholder="0"
-                    />
-                  </div>
-                </div>
-                <Button onClick={handleAddProduct} className="w-full">
-                  Agregar Producto
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-          
-          <Button className="bg-green-600 hover:bg-green-700">
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            Agregar Compra
-          </Button>
-          
-          <Button className="bg-blue-600 hover:bg-blue-700">
-            <TrendingUp className="mr-2 h-4 w-4" />
-            Agregar Venta
-          </Button>
-        </div>
+        <Button 
+          onClick={() => setIsAddingProduct(true)}
+          className="bg-purple-600 hover:bg-purple-700"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Agregar Producto
+        </Button>
       </div>
 
       {/* Productos con stock crítico */}
@@ -279,6 +216,60 @@ const AdminInventory: React.FC = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Dialog para agregar producto */}
+      <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Agregar Nuevo Producto</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div>
+              <Label htmlFor="name">Nombre del Producto *</Label>
+              <Input
+                id="name"
+                value={newProduct.name}
+                onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                placeholder="Nombre del producto"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description">Descripción (Opcional)</Label>
+              <Textarea
+                id="description"
+                value={newProduct.description}
+                onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                placeholder="Descripción del producto"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="minStock">Stock Mínimo (Opcional)</Label>
+                <Input
+                  id="minStock"
+                  type="number"
+                  value={newProduct.minStock}
+                  onChange={(e) => setNewProduct({...newProduct, minStock: e.target.value})}
+                  placeholder="0"
+                />
+              </div>
+              <div>
+                <Label htmlFor="currentStock">Stock Inicial (Opcional)</Label>
+                <Input
+                  id="currentStock"
+                  type="number"
+                  value={newProduct.currentStock}
+                  onChange={(e) => setNewProduct({...newProduct, currentStock: e.target.value})}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+            <Button onClick={handleAddProduct} className="w-full">
+              Agregar Producto
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog para editar producto */}
       <Dialog open={!!editingProduct} onOpenChange={() => setEditingProduct(null)}>
