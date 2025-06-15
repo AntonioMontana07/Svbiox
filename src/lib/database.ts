@@ -1,16 +1,17 @@
 
 // Base de datos local usando IndexedDB
 export interface User {
-  id: string;
+  id?: number;
   username: string;
   password: string;
   role: 'admin' | 'cashier';
+  fullName?: string;
   isActive: boolean;
   createdAt: Date;
 }
 
 export interface Product {
-  id: string;
+  id?: number;
   name: string;
   minStock: number;
   currentStock: number;
@@ -20,24 +21,26 @@ export interface Product {
 }
 
 export interface Purchase {
-  id: string;
-  productId: string;
+  id?: number;
+  productId: number;
   productName: string;
   quantity: number;
   purchasePrice: number;
   description?: string;
-  cashierId: string;
+  cashierId: number;
+  date: Date;
   createdAt: Date;
 }
 
 export interface Sale {
-  id: string;
-  productId: string;
+  id?: number;
+  productId: number;
   productName: string;
   quantity: number;
   salePrice: number;
   total: number;
-  cashierId: string;
+  cashierId: number;
+  date: Date;
   createdAt: Date;
 }
 
@@ -61,26 +64,26 @@ class Database {
 
         // Tabla de usuarios
         if (!db.objectStoreNames.contains('users')) {
-          const userStore = db.createObjectStore('users', { keyPath: 'id' });
+          const userStore = db.createObjectStore('users', { keyPath: 'id', autoIncrement: true });
           userStore.createIndex('username', 'username', { unique: true });
         }
 
         // Tabla de productos
         if (!db.objectStoreNames.contains('products')) {
-          const productStore = db.createObjectStore('products', { keyPath: 'id' });
+          const productStore = db.createObjectStore('products', { keyPath: 'id', autoIncrement: true });
           productStore.createIndex('name', 'name');
         }
 
         // Tabla de compras
         if (!db.objectStoreNames.contains('purchases')) {
-          const purchaseStore = db.createObjectStore('purchases', { keyPath: 'id' });
+          const purchaseStore = db.createObjectStore('purchases', { keyPath: 'id', autoIncrement: true });
           purchaseStore.createIndex('cashierId', 'cashierId');
           purchaseStore.createIndex('productId', 'productId');
         }
 
         // Tabla de ventas
         if (!db.objectStoreNames.contains('sales')) {
-          const saleStore = db.createObjectStore('sales', { keyPath: 'id' });
+          const saleStore = db.createObjectStore('sales', { keyPath: 'id', autoIncrement: true });
           saleStore.createIndex('cashierId', 'cashierId');
           saleStore.createIndex('productId', 'productId');
         }
@@ -89,18 +92,20 @@ class Database {
   }
 
   // Usuarios
-  async createUser(user: Omit<User, 'id' | 'createdAt'>): Promise<string> {
-    const id = crypto.randomUUID();
-    const newUser: User = {
+  async addUser(user: Omit<User, 'id' | 'createdAt'>): Promise<number> {
+    const newUser: Omit<User, 'id'> = {
       ...user,
-      id,
       createdAt: new Date()
     };
 
     const transaction = this.db!.transaction(['users'], 'readwrite');
     const store = transaction.objectStore('users');
-    await store.add(newUser);
-    return id;
+    
+    return new Promise((resolve, reject) => {
+      const request = store.add(newUser);
+      request.onsuccess = () => resolve(request.result as number);
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async getUser(username: string, password: string): Promise<User | null> {
@@ -136,7 +141,11 @@ class Database {
     });
   }
 
-  async updateUserStatus(userId: string, isActive: boolean): Promise<void> {
+  async updateCashierStatus(userId: number, isActive: boolean): Promise<void> {
+    return this.updateUserStatus(userId, isActive);
+  }
+
+  async updateUserStatus(userId: number, isActive: boolean): Promise<void> {
     const transaction = this.db!.transaction(['users'], 'readwrite');
     const store = transaction.objectStore('users');
     
@@ -158,18 +167,20 @@ class Database {
   }
 
   // Productos
-  async createProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<string> {
-    const id = crypto.randomUUID();
-    const newProduct: Product = {
+  async addProduct(product: Omit<Product, 'id' | 'createdAt'>): Promise<number> {
+    const newProduct: Omit<Product, 'id'> = {
       ...product,
-      id,
       createdAt: new Date()
     };
 
     const transaction = this.db!.transaction(['products'], 'readwrite');
     const store = transaction.objectStore('products');
-    await store.add(newProduct);
-    return id;
+    
+    return new Promise((resolve, reject) => {
+      const request = store.add(newProduct);
+      request.onsuccess = () => resolve(request.result as number);
+      request.onerror = () => reject(request.error);
+    });
   }
 
   async getAllProducts(): Promise<Product[]> {
@@ -183,7 +194,29 @@ class Database {
     });
   }
 
-  async updateProductStock(productId: string, quantity: number, operation: 'add' | 'subtract'): Promise<void> {
+  async updateProduct(productId: number, product: Product): Promise<void> {
+    const transaction = this.db!.transaction(['products'], 'readwrite');
+    const store = transaction.objectStore('products');
+    
+    return new Promise((resolve, reject) => {
+      const updateRequest = store.put(product);
+      updateRequest.onsuccess = () => resolve();
+      updateRequest.onerror = () => reject(updateRequest.error);
+    });
+  }
+
+  async deleteProduct(productId: number): Promise<void> {
+    const transaction = this.db!.transaction(['products'], 'readwrite');
+    const store = transaction.objectStore('products');
+    
+    return new Promise((resolve, reject) => {
+      const request = store.delete(productId);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async updateProductStock(productId: number, quantity: number, operation: 'add' | 'subtract'): Promise<void> {
     const transaction = this.db!.transaction(['products'], 'readwrite');
     const store = transaction.objectStore('products');
     
@@ -214,25 +247,27 @@ class Database {
   }
 
   // Compras
-  async createPurchase(purchase: Omit<Purchase, 'id' | 'createdAt'>): Promise<string> {
-    const id = crypto.randomUUID();
-    const newPurchase: Purchase = {
+  async createPurchase(purchase: Omit<Purchase, 'id' | 'createdAt'>): Promise<number> {
+    const newPurchase: Omit<Purchase, 'id'> = {
       ...purchase,
-      id,
       createdAt: new Date()
     };
 
     const transaction = this.db!.transaction(['purchases'], 'readwrite');
     const store = transaction.objectStore('purchases');
-    await store.add(newPurchase);
     
-    // Actualizar stock del producto
-    await this.updateProductStock(purchase.productId, purchase.quantity, 'add');
-    
-    return id;
+    return new Promise((resolve, reject) => {
+      const request = store.add(newPurchase);
+      request.onsuccess = async () => {
+        // Actualizar stock del producto
+        await this.updateProductStock(purchase.productId, purchase.quantity, 'add');
+        resolve(request.result as number);
+      };
+      request.onerror = () => reject(request.error);
+    });
   }
 
-  async getPurchasesByUser(cashierId: string): Promise<Purchase[]> {
+  async getPurchasesByUser(cashierId: number): Promise<Purchase[]> {
     const transaction = this.db!.transaction(['purchases'], 'readonly');
     const store = transaction.objectStore('purchases');
     const index = store.index('cashierId');
@@ -245,25 +280,27 @@ class Database {
   }
 
   // Ventas
-  async createSale(sale: Omit<Sale, 'id' | 'createdAt'>): Promise<string> {
-    const id = crypto.randomUUID();
-    const newSale: Sale = {
+  async createSale(sale: Omit<Sale, 'id' | 'createdAt'>): Promise<number> {
+    const newSale: Omit<Sale, 'id'> = {
       ...sale,
-      id,
       createdAt: new Date()
     };
 
     const transaction = this.db!.transaction(['sales'], 'readwrite');
     const store = transaction.objectStore('sales');
-    await store.add(newSale);
     
-    // Reducir stock del producto
-    await this.updateProductStock(sale.productId, sale.quantity, 'subtract');
-    
-    return id;
+    return new Promise((resolve, reject) => {
+      const request = store.add(newSale);
+      request.onsuccess = async () => {
+        // Reducir stock del producto
+        await this.updateProductStock(sale.productId, sale.quantity, 'subtract');
+        resolve(request.result as number);
+      };
+      request.onerror = () => reject(request.error);
+    });
   }
 
-  async getSalesByUser(cashierId: string): Promise<Sale[]> {
+  async getSalesByUser(cashierId: number): Promise<Sale[]> {
     const transaction = this.db!.transaction(['sales'], 'readonly');
     const store = transaction.objectStore('sales');
     const index = store.index('cashierId');
@@ -304,29 +341,32 @@ export const database = new Database();
 export async function initializeTestData(): Promise<void> {
   try {
     // Crear usuarios de prueba
-    await database.createUser({
+    await database.addUser({
       username: 'admin',
       password: 'admin123',
       role: 'admin',
+      fullName: 'Administrador Principal',
       isActive: true
     });
 
-    await database.createUser({
+    await database.addUser({
       username: 'cajero1',
       password: 'cajero123',
       role: 'cashier',
+      fullName: 'María González',
       isActive: true
     });
 
-    await database.createUser({
+    await database.addUser({
       username: 'cajero2',
       password: 'cajero456',
       role: 'cashier',
+      fullName: 'Juan Pérez',
       isActive: true
     });
 
     // Crear productos de prueba
-    await database.createProduct({
+    await database.addProduct({
       name: 'Producto A',
       minStock: 10,
       currentStock: 50,
@@ -334,7 +374,7 @@ export async function initializeTestData(): Promise<void> {
       createdBy: 'admin'
     });
 
-    await database.createProduct({
+    await database.addProduct({
       name: 'Producto B',
       minStock: 5,
       currentStock: 3,

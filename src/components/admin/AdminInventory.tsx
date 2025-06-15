@@ -52,7 +52,8 @@ const AdminInventory: React.FC = () => {
         name: newProduct.name,
         description: newProduct.description,
         minStock: newProduct.minStock,
-        currentStock: newProduct.currentStock
+        currentStock: newProduct.currentStock,
+        createdBy: 'admin'
       });
 
       toast({
