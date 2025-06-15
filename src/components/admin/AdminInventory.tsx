@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Package, Plus, AlertTriangle, Edit, Trash2 } from 'lucide-react';
+import { Package, Plus, AlertTriangle, Edit, Trash2, ShoppingCart, TrendingUp } from 'lucide-react';
 import { database, Product } from '@/lib/database';
 import { useToast } from '@/hooks/use-toast';
 
@@ -19,8 +19,8 @@ const AdminInventory: React.FC = () => {
   const [newProduct, setNewProduct] = useState({
     name: '',
     description: '',
-    minStock: 0,
-    currentStock: 0
+    minStock: '',
+    currentStock: ''
   });
   const { toast } = useToast();
 
@@ -51,8 +51,8 @@ const AdminInventory: React.FC = () => {
       await database.addProduct({
         name: newProduct.name,
         description: newProduct.description,
-        minStock: newProduct.minStock,
-        currentStock: newProduct.currentStock,
+        minStock: newProduct.minStock ? parseInt(newProduct.minStock) : 0,
+        currentStock: newProduct.currentStock ? parseInt(newProduct.currentStock) : 0,
         createdBy: 'admin'
       });
 
@@ -61,7 +61,7 @@ const AdminInventory: React.FC = () => {
         description: `${newProduct.name} ha sido agregado al inventario`
       });
 
-      setNewProduct({ name: '', description: '', minStock: 0, currentStock: 0 });
+      setNewProduct({ name: '', description: '', minStock: '', currentStock: '' });
       setIsAddingProduct(false);
       loadProducts();
     } catch (error) {
@@ -132,64 +132,76 @@ const AdminInventory: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Inventario Global</h2>
-        <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
-          <DialogTrigger asChild>
-            <Button className="bg-purple-600 hover:bg-purple-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Agregar Producto
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Agregar Nuevo Producto</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 pt-4">
-              <div>
-                <Label htmlFor="name">Nombre del Producto</Label>
-                <Input
-                  id="name"
-                  value={newProduct.name}
-                  onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                  placeholder="Nombre del producto"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Descripción (Opcional)</Label>
-                <Textarea
-                  id="description"
-                  value={newProduct.description}
-                  onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-                  placeholder="Descripción del producto"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="minStock">Stock Mínimo</Label>
-                  <Input
-                    id="minStock"
-                    type="number"
-                    value={newProduct.minStock}
-                    onChange={(e) => setNewProduct({...newProduct, minStock: parseInt(e.target.value) || 0})}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="currentStock">Stock Inicial</Label>
-                  <Input
-                    id="currentStock"
-                    type="number"
-                    value={newProduct.currentStock}
-                    onChange={(e) => setNewProduct({...newProduct, currentStock: parseInt(e.target.value) || 0})}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-              <Button onClick={handleAddProduct} className="w-full">
+        <div className="flex space-x-2">
+          <Dialog open={isAddingProduct} onOpenChange={setIsAddingProduct}>
+            <DialogTrigger asChild>
+              <Button className="bg-purple-600 hover:bg-purple-700">
+                <Plus className="mr-2 h-4 w-4" />
                 Agregar Producto
               </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Agregar Nuevo Producto</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-4">
+                <div>
+                  <Label htmlFor="name">Nombre del Producto *</Label>
+                  <Input
+                    id="name"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                    placeholder="Nombre del producto"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="description">Descripción (Opcional)</Label>
+                  <Textarea
+                    id="description"
+                    value={newProduct.description}
+                    onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                    placeholder="Descripción del producto"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="minStock">Stock Mínimo (Opcional)</Label>
+                    <Input
+                      id="minStock"
+                      type="number"
+                      value={newProduct.minStock}
+                      onChange={(e) => setNewProduct({...newProduct, minStock: e.target.value})}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="currentStock">Stock Inicial (Opcional)</Label>
+                    <Input
+                      id="currentStock"
+                      type="number"
+                      value={newProduct.currentStock}
+                      onChange={(e) => setNewProduct({...newProduct, currentStock: e.target.value})}
+                      placeholder="0"
+                    />
+                  </div>
+                </div>
+                <Button onClick={handleAddProduct} className="w-full">
+                  Agregar Producto
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          <Button className="bg-green-600 hover:bg-green-700">
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Agregar Compra
+          </Button>
+          
+          <Button className="bg-blue-600 hover:bg-blue-700">
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Agregar Venta
+          </Button>
+        </div>
       </div>
 
       {/* Productos con stock crítico */}
