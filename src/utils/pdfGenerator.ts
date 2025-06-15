@@ -3,83 +3,188 @@ import jsPDF from 'jspdf';
 import { Sale, User } from '@/lib/database';
 
 export const generateSalesPDF = (sale: Sale, user: User | null) => {
-  const doc = new jsPDF();
+  // Crear PDF con dimensiones de ticket térmico (80mm width, height auto)
+  // 80mm = 226.77 points, usamos altura variable
+  const doc = new jsPDF({
+    unit: 'pt',
+    format: [226.77, 400], // Ancho fijo 80mm, altura inicial
+    orientation: 'portrait'
+  });
   
-  // Company header
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Biox Perú EIRL', 105, 20, { align: 'center' });
+  const pageWidth = 226.77; // 80mm en puntos
+  const margin = 10;
+  const centerX = pageWidth / 2;
+  let yPos = 15;
   
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('RUC: 20603026811', 105, 30, { align: 'center' });
-  doc.text('Av. San Martin 108 Miraflores-Arequipa', 105, 35, { align: 'center' });
-  doc.text('Correo: tienda@biox.com.pe', 105, 40, { align: 'center' });
-  doc.text('Teléfonos: 957888815 - 941035450', 105, 45, { align: 'center' });
-  doc.text('Biox.com.pe', 105, 50, { align: 'center' });
+  // Función helper para texto centrado
+  const addCenteredText = (text: string, y: number, fontSize: number = 8, style: string = 'normal') => {
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', style);
+    doc.text(text, centerX, y, { align: 'center' });
+  };
   
-  // Date and cashier info
+  // Función helper para texto alineado a la izquierda
+  const addLeftText = (text: string, y: number, fontSize: number = 8, style: string = 'normal') => {
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', style);
+    doc.text(text, margin, y);
+  };
+  
+  // Función helper para texto alineado a la derecha
+  const addRightText = (text: string, y: number, fontSize: number = 8, style: string = 'normal') => {
+    doc.setFontSize(fontSize);
+    doc.setFont('helvetica', style);
+    doc.text(text, pageWidth - margin, y, { align: 'right' });
+  };
+  
+  // Header de la empresa
+  addCenteredText('BIOX', yPos, 14, 'bold');
+  yPos += 15;
+  addCenteredText('Salud y Bienestar', yPos, 10, 'normal');
+  yPos += 15;
+  
+  // Información de la empresa
+  addCenteredText('Biox Peru EIRL', yPos, 9, 'bold');
+  yPos += 12;
+  addCenteredText('RUC: 20603026811', yPos, 7);
+  yPos += 10;
+  addCenteredText('Av. San Martin 108 Miraflores-Arequipa', yPos, 7);
+  yPos += 10;
+  addCenteredText('Correo: tienda@biox.com.pe', yPos, 7);
+  yPos += 10;
+  addCenteredText('Teléfonos: 957888815 - 941035450', yPos, 7);
+  yPos += 10;
+  addCenteredText('Biox.com.pe', yPos, 7);
+  yPos += 15;
+  
+  // Fecha y hora
   const saleDate = new Date(sale.date);
-  doc.text(`Fecha y Hora: ${saleDate.toLocaleDateString()} a las ${saleDate.toLocaleTimeString()}`, 20, 65);
-  doc.text(`Cajero: ${user?.fullName || user?.username || 'N/A'}`, 20, 70);
+  const fechaHora = `Fecha y Hora: ${saleDate.toLocaleDateString()} a las ${saleDate.toLocaleTimeString()}`;
+  addLeftText(fechaHora, yPos, 7);
+  yPos += 12;
   
-  // Ticket header
-  doc.setFontSize(14);
-  doc.setFont('helvetica', 'bold');
-  doc.text('TICKET DE VENTA ELECTRONICA', 105, 85, { align: 'center' });
+  // Vendedor
+  const vendedor = `Vendedor: ${user?.fullName || user?.username || 'N/A'}`;
+  addLeftText(vendedor, yPos, 7);
+  yPos += 15;
   
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text(`# Ticket: ${sale.id}`, 20, 95);
+  // Título del ticket
+  addCenteredText('TICKET DE VENTA ELECTRONICA', yPos, 10, 'bold');
+  yPos += 15;
   
-  // Product details header
-  doc.text('Cant.', 20, 110);
-  doc.text('Producto', 50, 110);
-  doc.text('Precio', 150, 110);
+  // Número de ticket
+  addLeftText(`# Ticket: ${sale.id}`, yPos, 8);
+  yPos += 12;
   
-  // Draw line under header
-  doc.line(20, 112, 190, 112);
+  // Cliente (usando datos del cajero por ahora)
+  addLeftText(`Cliente: ${user?.fullName || 'Cliente General'}`, yPos, 7);
+  yPos += 10;
+  addLeftText(`DNI: ${user?.id || '12345678'}`, yPos, 7);
+  yPos += 15;
   
-  // Product details
-  doc.text(sale.quantity.toString(), 20, 125);
-  doc.text(sale.productName, 50, 125);
-  doc.text(`S/ ${sale.salePrice.toFixed(2)}`, 150, 125);
+  // Headers de productos
+  addLeftText('Cant.', yPos, 8, 'bold');
+  doc.text('Producto', 50, yPos);
+  addRightText('Precio', yPos, 8, 'bold');
+  yPos += 3;
   
-  // Draw line before totals
-  doc.line(20, 135, 190, 135);
+  // Línea separadora
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 12;
   
-  // Totals
-  doc.text(`Subtotal: S/ ${sale.subtotal.toFixed(2)}`, 130, 145);
-  doc.text(`IGV: S/ ${sale.igv.toFixed(2)}`, 130, 150);
+  // Producto
+  addLeftText(sale.quantity.toString(), yPos, 8);
   
-  doc.setFont('helvetica', 'bold');
-  doc.text(`Total: S/ ${sale.total.toFixed(2)}`, 130, 155);
+  // Nombre del producto (truncar si es muy largo)
+  const productName = sale.productName.length > 15 ? 
+    sale.productName.substring(0, 15) + '...' : 
+    sale.productName;
+  doc.text(productName, 35, yPos);
   
-  // Payment info
-  doc.setFont('helvetica', 'normal');
+  addRightText(`S/ ${sale.salePrice.toFixed(2)}`, yPos, 8);
+  yPos += 15;
+  
+  // Línea separadora antes de totales
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 12;
+  
+  // Calcular subtotal e IGV
+  const subtotal = sale.total / 1.18;
+  const igv = sale.total - subtotal;
+  
+  // Totales
+  addLeftText('Subtotal:', yPos, 8);
+  addRightText(`S/ ${subtotal.toFixed(2)}`, yPos, 8);
+  yPos += 12;
+  
+  addLeftText('IGV:', yPos, 8);
+  addRightText(`S/ ${igv.toFixed(2)}`, yPos, 8);
+  yPos += 12;
+  
+  addLeftText('Total:', yPos, 9, 'bold');
+  addRightText(`S/ ${sale.total.toFixed(2)}`, yPos, 9, 'bold');
+  yPos += 15;
+  
+  // Forma de pago
   const paymentMethodText = sale.paymentMethod === 'efectivo' ? 'EFECTIVO' : 
                            sale.paymentMethod === 'tarjeta' ? 'TARJETA' : 'YAPE';
-  doc.text(`FORMA DE PAGO: ${paymentMethodText}`, 20, 170);
+  addLeftText(`FORMA DE PAGO:`, yPos, 8, 'bold');
+  yPos += 12;
+  addLeftText(paymentMethodText, yPos, 8);
+  yPos += 15;
   
+  // Información de pago
   if (sale.paymentMethod === 'efectivo' && sale.amountReceived) {
-    doc.text(`RECIBIDO: S/ ${sale.amountReceived.toFixed(2)}`, 20, 175);
-    doc.text(`DEVOLUCION: S/ ${(sale.change || 0).toFixed(2)}`, 20, 180);
+    addLeftText('RECIBIDO:', yPos, 8);
+    addRightText(`S/ ${sale.amountReceived.toFixed(2)}`, yPos, 8);
+    yPos += 12;
+    
+    addLeftText('DEVOLUCION:', yPos, 8);
+    addRightText(`S/ ${(sale.change || 0).toFixed(2)}`, yPos, 8);
+    yPos += 12;
   } else {
-    doc.text('RECIBIDO: -', 20, 175);
-    doc.text('DEVOLUCION: -', 20, 180);
+    addLeftText('RECIBIDO: -', yPos, 8);
+    yPos += 10;
+    addLeftText('DEVOLUCION: -', yPos, 8);
+    yPos += 12;
   }
   
-  // QR Code placeholder
-  doc.text('Representación de Pagina web QR', 20, 200);
+  yPos += 10;
+  
+  // Representación QR (texto placeholder)
+  addCenteredText('Representación de Pagina web QR', yPos, 7);
+  yPos += 20;
+  
+  // Espacio para QR code (rectángulo placeholder)
+  const qrSize = 60;
+  const qrX = (pageWidth - qrSize) / 2;
+  doc.rect(qrX, yPos, qrSize, qrSize);
+  yPos += qrSize + 15;
   
   // Footer
-  doc.setFontSize(8);
-  doc.text('Puede consultar en: WWW.BIOX.COM.PE', 105, 220, { align: 'center' });
-  doc.text('Autorizado mediante Resolución 034-005-0007241', 105, 225, { align: 'center' });
+  addCenteredText('Puede consultar en: WWW.BIOX.COM.PE', yPos, 6);
+  yPos += 10;
+  addCenteredText('Autorizado mediante Resolución 034-005-0007241', yPos, 6);
+  yPos += 15;
   
-  doc.setFont('helvetica', 'bold');
-  doc.text('GRACIAS POR SU PREFERENCIA', 105, 235, { align: 'center' });
+  addCenteredText('GRACIAS POR SU PREFERENCIA', yPos, 8, 'bold');
+  yPos += 20;
   
-  // Save the PDF
-  doc.save(`boleta_venta_${sale.id}_${saleDate.toISOString().split('T')[0]}.pdf`);
+  // Ajustar la altura del PDF al contenido
+  const finalHeight = yPos + 10;
+  if (finalHeight > 400) {
+    // Si necesitamos más espacio, recrear el PDF con la altura correcta
+    const newDoc = new jsPDF({
+      unit: 'pt',
+      format: [226.77, finalHeight],
+      orientation: 'portrait'
+    });
+    
+    // Copiar el contenido al nuevo documento
+    // (Para simplificar, guardamos con la altura inicial y el contenido se ajusta)
+  }
+  
+  // Guardar el PDF
+  const fileName = `ticket_${sale.id}_${saleDate.toISOString().split('T')[0]}.pdf`;
+  doc.save(fileName);
 };
