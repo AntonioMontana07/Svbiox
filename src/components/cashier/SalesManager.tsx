@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,10 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Plus, ShoppingBag, Trash2, ShoppingCart } from 'lucide-react';
+import { TrendingUp, Plus, ShoppingBag, Trash2, ShoppingCart, Download, Trash } from 'lucide-react';
 import { database, Product, Sale } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { generateSalesPDF } from '@/utils/pdfGenerator';
 
 interface CartItem {
   productId: number;
@@ -201,6 +201,39 @@ const SalesManager: React.FC = () => {
     }
   };
 
+  const deleteSale = async (saleId: number) => {
+    try {
+      await database.deleteSale(saleId);
+      toast({
+        title: "Venta eliminada",
+        description: "La venta ha sido eliminada completamente del sistema"
+      });
+      loadData();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar la venta",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const downloadSalesPDF = (sale: Sale) => {
+    try {
+      generateSalesPDF(sale, user);
+      toast({
+        title: "PDF generado",
+        description: "La boleta ha sido descargada exitosamente"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "No se pudo generar el PDF",
+        variant: "destructive"
+      });
+    }
+  };
+
   const selectedProduct = products.find(p => p.id?.toString() === itemForm.productId);
   const cartTotal = cart.reduce((sum, item) => sum + item.total, 0);
 
@@ -368,6 +401,7 @@ const SalesManager: React.FC = () => {
                   <TableHead>Precio Unit.</TableHead>
                   <TableHead>Total</TableHead>
                   <TableHead>Estado</TableHead>
+                  <TableHead>Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -384,6 +418,25 @@ const SalesManager: React.FC = () => {
                       <Badge className="bg-green-100 text-green-800">
                         Completada
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => downloadSalesPDF(sale)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => deleteSale(sale.id!)}
+                        >
+                          <Trash className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

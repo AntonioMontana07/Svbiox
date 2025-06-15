@@ -1,4 +1,3 @@
-
 // Base de datos local usando IndexedDB
 export interface User {
   id?: number;
@@ -503,6 +502,27 @@ class Database {
         resolve(logs);
       };
       request.onerror = () => resolve([]);
+    });
+  }
+
+  async deleteSale(saleId: number): Promise<void> {
+    const transaction = this.db!.transaction(['sales'], 'readwrite');
+    const store = transaction.objectStore('sales');
+    
+    return new Promise((resolve, reject) => {
+      const getRequest = store.get(saleId);
+      getRequest.onsuccess = async () => {
+        const sale = getRequest.result;
+        const deleteRequest = store.delete(saleId);
+        deleteRequest.onsuccess = async () => {
+          if (sale) {
+            await this.logActivity('Venta eliminada', sale.cashierId, 'cashier', `Venta #${saleId} eliminada completamente`);
+          }
+          resolve();
+        };
+        deleteRequest.onerror = () => reject(deleteRequest.error);
+      };
+      getRequest.onerror = () => reject(getRequest.error);
     });
   }
 }
