@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +15,7 @@ const CashierManagement: React.FC = () => {
   const [isAddingCashier, setIsAddingCashier] = useState(false);
   const [newCashier, setNewCashier] = useState({
     username: '',
+    email: '',
     password: '',
     fullName: ''
   });
@@ -35,10 +35,10 @@ const CashierManagement: React.FC = () => {
   };
 
   const handleAddCashier = async () => {
-    if (!newCashier.username || !newCashier.password) {
+    if (!newCashier.username || !newCashier.password || !newCashier.email) {
       toast({
         title: "Error",
-        description: "Usuario y contraseña son requeridos",
+        description: "Usuario, email y contraseña son requeridos",
         variant: "destructive"
       });
       return;
@@ -47,6 +47,7 @@ const CashierManagement: React.FC = () => {
     try {
       await database.addUser({
         username: newCashier.username,
+        email: newCashier.email,
         password: newCashier.password,
         role: 'cashier',
         fullName: newCashier.fullName || newCashier.username,
@@ -58,7 +59,7 @@ const CashierManagement: React.FC = () => {
         description: `${newCashier.username} ha sido agregado exitosamente`
       });
 
-      setNewCashier({ username: '', password: '', fullName: '' });
+      setNewCashier({ username: '', email: '', password: '', fullName: '' });
       setIsAddingCashier(false);
       loadCashiers();
     } catch (error) {
@@ -113,6 +114,16 @@ const CashierManagement: React.FC = () => {
                 />
               </div>
               <div>
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={newCashier.email}
+                  onChange={(e) => setNewCashier({...newCashier, email: e.target.value})}
+                  placeholder="correo@ejemplo.com"
+                />
+              </div>
+              <div>
                 <Label htmlFor="password">Contraseña</Label>
                 <Input
                   id="password"
@@ -155,6 +166,7 @@ const CashierManagement: React.FC = () => {
                   <div>
                     <h3 className="font-semibold text-lg">{cashier.fullName || cashier.username}</h3>
                     <p className="text-gray-600">@{cashier.username}</p>
+                    <p className="text-gray-500 text-sm">{cashier.email}</p>
                   </div>
                 </div>
                 <div className="flex items-center space-x-4">
