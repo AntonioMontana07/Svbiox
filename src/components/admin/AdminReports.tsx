@@ -5,13 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FileText, Download, Calendar, User } from 'lucide-react';
-import { database, Sale, User as UserType } from '@/lib/database';
+import { FileText, Download, Calendar, User, Activity } from 'lucide-react';
+import { database, Sale, Purchase, User as UserType, ActivityLog } from '@/lib/database';
 
 const AdminReports: React.FC = () => {
   const [sales, setSales] = useState<Sale[]>([]);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [cashiers, setCashiers] = useState<UserType[]>([]);
+  const [activityLogs, setActivityLogs] = useState<ActivityLog[]>([]);
   const [filters, setFilters] = useState({
     startDate: '',
     endDate: '',
@@ -20,9 +24,11 @@ const AdminReports: React.FC = () => {
   const [reportData, setReportData] = useState({
     totalSales: 0,
     totalRevenue: 0,
+    totalPurchases: 0,
+    totalPurchaseAmount: 0,
     salesByDay: [],
     salesByCashier: [],
-    topProducts: []
+    purchasesByCashier: []
   });
 
   useEffect(() => {
@@ -31,44 +37,56 @@ const AdminReports: React.FC = () => {
 
   useEffect(() => {
     generateReport();
-  }, [sales, filters]);
+  }, [sales, purchases, filters]);
 
   const loadInitialData = async () => {
     try {
-      const [allSales, allCashiers] = await Promise.all([
+      const [allSales, allPurchases, allCashiers, logs] = await Promise.all([
         database.getAllSales(),
-        database.getAllCashiers()
+        database.getAllPurchases(),
+        database.getAllCashiers(),
+        database.getActivityLogs()
       ]);
       setSales(allSales);
+      setPurchases(allPurchases);
       setCashiers(allCashiers);
+      setActivityLogs(logs);
     } catch (error) {
       console.error('Error loading report data:', error);
     }
   };
 
-  const generateReport = () => {
-    let filteredSales = sales;
-
-    // Aplicar filtros
+  const applyDateFilter = (items: any[]) => {
+    let filtered = items;
+    
     if (filters.startDate) {
-      filteredSales = filteredSales.filter(sale => 
-        new Date(sale.date) >= new Date(filters.startDate)
+      filtered = filtered.filter(item => 
+        new Date(item.date) >= new Date(filters.startDate)
       );
     }
     if (filters.endDate) {
-      filteredSales = filteredSales.filter(sale => 
-        new Date(sale.date) <= new Date(filters.endDate)
+      filtered = filtered.filter(item => 
+        new Date(item.date) <= new Date(filters.endDate)
       );
     }
     if (filters.cashierId) {
-      filteredSales = filteredSales.filter(sale => 
-        sale.cashierId.toString() === filters.cashierId
+      filtered = filtered.filter(item => 
+        item.cashierId?.toString() === filters.cashierId
       );
     }
+    
+    return filtered;
+  };
+
+  const generateReport = () => {
+    const filteredSales = applyDateFilter(sales);
+    const filteredPurchases = applyDateFilter(purchases);
 
     // Calcular métricas
     const totalSales = filteredSales.length;
     const totalRevenue = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+    const totalPurchases = filteredPurchases.length;
+    const totalPurchaseAmount = filteredPurchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0);
 
     // Ventas por día
     const salesByDay = filteredSales.reduce((acc: any, sale) => {
@@ -81,7 +99,7 @@ const AdminReports: React.FC = () => {
         acc.push({ date, sales: 1, revenue: sale.total });
       }
       return acc;
-    }, []).slice(-7); // Últimos 7 días
+    }, []).slice(-7);
 
     // Ventas por cajero
     const salesByCashier = cashiers.map(cashier => {
@@ -93,12 +111,24 @@ const AdminReports: React.FC = () => {
       };
     }).filter(item => item.sales > 0);
 
+    // Compras por cajero
+    const purchasesByCashier = cashiers.map(cashier => {
+      const cashierPurchases = filteredPurchases.filter(purchase => purchase.cashierId === cashier.id);
+      return {
+        name: cashier.fullName || cashier.username,
+        purchases: cashierPurchases.length,
+        amount: cashierPurchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0)
+      };
+    }).filter(item => item.purchases > 0);
+
     setReportData({
       totalSales,
       totalRevenue,
+      totalPurchases,
+      totalPurchaseAmount,
       salesByDay,
       salesByCashier,
-      topProducts: [] // Se implementará cuando tengamos más datos
+      purchasesByCashier
     });
   };
 
@@ -111,7 +141,7 @@ const AdminReports: React.FC = () => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Reportes de Ventas</h2>
+        <h2 className="text-2xl font-bold text-gray-900">Reportes del Sistema</h2>
         <Button variant="outline" className="border-purple-600 text-purple-600">
           <Download className="mr-2 h-4 w-4" />
           Exportar Reporte
@@ -193,70 +223,194 @@ const AdminReports: React.FC = () => {
             <div className="text-2xl font-bold text-green-600">
               ${reportData.totalRevenue.toLocaleString()}
             </div>
-            <div className="text-gray-600">Ingresos Totales</div>
+            <div className="text-gray-600">Ingresos por Ventas</div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-blue-600">
-              ${reportData.totalSales > 0 ? (reportData.totalRevenue / reportData.totalSales).toFixed(2) : '0'}
+            <div className="text-2xl font-bold text-blue-600">{reportData.totalPurchases}</div>
+            <div className="text-gray-600">Compras Totales</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <div className="text-2xl font-bold text-orange-600">
+              ${reportData.totalPurchaseAmount.toLocaleString()}
             </div>
-            <div className="text-gray-600">Promedio por Venta</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6 text-center">
-            <div className="text-2xl font-bold text-gray-600">{reportData.salesByCashier.length}</div>
-            <div className="text-gray-600">Cajeros Activos</div>
+            <div className="text-gray-600">Gastos en Compras</div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Gráficos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Ventas por Día</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={reportData.salesByDay}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="sales" fill="#8B5CF6" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Pestañas para diferentes reportes */}
+      <Tabs defaultValue="charts" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="charts">Gráficos</TabsTrigger>
+          <TabsTrigger value="sales">Detalle de Ventas</TabsTrigger>
+          <TabsTrigger value="purchases">Detalle de Compras</TabsTrigger>
+          <TabsTrigger value="activity">Historial de Actividad</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Ventas por Cajero</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={reportData.salesByCashier}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="sales"
-                  label={({name, sales}) => `${name}: ${sales}`}
-                >
-                  {reportData.salesByCashier.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+        <TabsContent value="charts" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Ventas por Día</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={reportData.salesByDay}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="date" />
+                    <YAxis />
+                    <Tooltip />
+                    <Bar dataKey="sales" fill="#8B5CF6" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Ventas por Cajero</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={reportData.salesByCashier}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="sales"
+                      label={({name, sales}) => `${name}: ${sales}`}
+                    >
+                      {reportData.salesByCashier.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sales">
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle de Ventas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Precio Unit.</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Cajero</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {applyDateFilter(sales).slice(0, 20).map((sale) => {
+                    const cashier = cashiers.find(c => c.id === sale.cashierId);
+                    return (
+                      <TableRow key={sale.id}>
+                        <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
+                        <TableCell>{sale.productName}</TableCell>
+                        <TableCell>{sale.quantity}</TableCell>
+                        <TableCell>${sale.salePrice}</TableCell>
+                        <TableCell>${sale.total}</TableCell>
+                        <TableCell>{cashier?.fullName || cashier?.username || 'N/A'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="purchases">
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle de Compras</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Producto</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                    <TableHead>Precio Unit.</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Cajero</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {applyDateFilter(purchases).slice(0, 20).map((purchase) => {
+                    const cashier = cashiers.find(c => c.id === purchase.cashierId);
+                    return (
+                      <TableRow key={purchase.id}>
+                        <TableCell>{new Date(purchase.date).toLocaleDateString()}</TableCell>
+                        <TableCell>{purchase.productName}</TableCell>
+                        <TableCell>{purchase.quantity}</TableCell>
+                        <TableCell>${purchase.purchasePrice}</TableCell>
+                        <TableCell>${purchase.quantity * purchase.purchasePrice}</TableCell>
+                        <TableCell>{cashier?.fullName || cashier?.username || 'N/A'}</TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="activity">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Activity className="h-5 w-5" />
+                <span>Historial de Actividad</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha</TableHead>
+                    <TableHead>Acción</TableHead>
+                    <TableHead>Usuario</TableHead>
+                    <TableHead>Rol</TableHead>
+                    <TableHead>Detalles</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {activityLogs.slice(0, 50).map((log) => (
+                    <TableRow key={log.id}>
+                      <TableCell>{new Date(log.date).toLocaleString()}</TableCell>
+                      <TableCell>{log.action}</TableCell>
+                      <TableCell>ID: {log.userId}</TableCell>
+                      <TableCell>
+                        <Badge variant={log.userRole === 'admin' ? 'default' : 'secondary'}>
+                          {log.userRole === 'admin' ? 'Administrador' : 'Cajero'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate">{log.details}</TableCell>
+                    </TableRow>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

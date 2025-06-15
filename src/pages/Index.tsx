@@ -1,12 +1,27 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { database, initializeTestData } from '@/lib/database';
 import LoginForm from '@/components/LoginForm';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 import CashierDashboard from '@/components/cashier/CashierDashboard';
+import StockAlerts from '@/components/StockAlerts';
 
 const Index = () => {
   const { user, isLoading } = useAuth();
+
+  useEffect(() => {
+    const initDatabase = async () => {
+      try {
+        await database.init();
+        await initializeTestData();
+      } catch (error) {
+        console.error('Error initializing database:', error);
+      }
+    };
+
+    initDatabase();
+  }, []);
 
   if (isLoading) {
     return (
@@ -25,15 +40,16 @@ const Index = () => {
     return <LoginForm />;
   }
 
-  if (user.role === 'admin') {
-    return <AdminDashboard />;
-  }
-
-  if (user.role === 'cashier') {
-    return <CashierDashboard />;
-  }
-
-  return <LoginForm />;
+  return (
+    <>
+      {/* Mostrar alertas de stock cuando el usuario esté logueado */}
+      <StockAlerts />
+      
+      {user.role === 'admin' && <AdminDashboard />}
+      {user.role === 'cashier' && <CashierDashboard />}
+      {user.role !== 'admin' && user.role !== 'cashier' && <LoginForm />}
+    </>
+  );
 };
 
 export default Index;
