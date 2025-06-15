@@ -3,11 +3,12 @@ import React, { useState } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, TrendingUp, DollarSign } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus } from 'lucide-react';
 import CashierSidebar from './CashierSidebar';
 import CashierInventory from './CashierInventory';
 import PurchaseManager from './PurchaseManager';
 import SalesManager from './SalesManager';
+import ProductManager from './ProductManager';
 
 const CashierDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('summary');
@@ -20,21 +21,36 @@ const CashierDashboard: React.FC = () => {
         return <PurchaseManager />;
       case 'sales':
         return <SalesManager />;
+      case 'products':
+        return <ProductManager />;
       default:
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Resumen del Cajero</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Panel de Cajero</h2>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('products')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Productos</CardTitle>
+                  <Plus className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">Agregar</div>
+                  <p className="text-xs text-muted-foreground">
+                    Registra nuevos productos
+                  </p>
+                </CardContent>
+              </Card>
+
               <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('inventory')}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Inventario</CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Ver Productos</div>
+                  <div className="text-2xl font-bold">Consultar</div>
                   <p className="text-xs text-muted-foreground">
-                    Consulta el inventario disponible
+                    Ver stock disponible
                   </p>
                 </CardContent>
               </Card>
@@ -47,7 +63,7 @@ const CashierDashboard: React.FC = () => {
                 <CardContent>
                   <div className="text-2xl font-bold">Registrar</div>
                   <p className="text-xs text-muted-foreground">
-                    Gestiona las compras de productos
+                    Gestiona compras
                   </p>
                 </CardContent>
               </Card>
@@ -60,7 +76,7 @@ const CashierDashboard: React.FC = () => {
                 <CardContent>
                   <div className="text-2xl font-bold">Vender</div>
                   <p className="text-xs text-muted-foreground">
-                    Registra ventas de productos
+                    Registra ventas
                   </p>
                 </CardContent>
               </Card>
@@ -70,19 +86,19 @@ const CashierDashboard: React.FC = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <ShoppingCart className="mr-2 h-5 w-5" />
-                    Acciones Rápidas - Compras
+                    <Plus className="mr-2 h-5 w-5" />
+                    Gestión de Productos
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <Button 
-                    className="w-full bg-green-600 hover:bg-green-700"
-                    onClick={() => setActiveTab('purchases')}
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                    onClick={() => setActiveTab('products')}
                   >
-                    Registrar Nueva Compra
+                    Agregar Nuevo Producto
                   </Button>
                   <p className="text-sm text-gray-600">
-                    Agrega productos al inventario registrando compras
+                    Registra productos nuevos en el inventario global
                   </p>
                 </CardContent>
               </Card>
@@ -90,19 +106,27 @@ const CashierDashboard: React.FC = () => {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
-                    <TrendingUp className="mr-2 h-5 w-5" />
-                    Acciones Rápidas - Ventas
+                    <Package className="mr-2 h-5 w-5" />
+                    Operaciones de Stock
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
-                  <Button 
-                    className="w-full bg-blue-600 hover:bg-blue-700"
-                    onClick={() => setActiveTab('sales')}
-                  >
-                    Registrar Nueva Venta
-                  </Button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button 
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => setActiveTab('purchases')}
+                    >
+                      Comprar
+                    </Button>
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700"
+                      onClick={() => setActiveTab('sales')}
+                    >
+                      Vender
+                    </Button>
+                  </div>
                   <p className="text-sm text-gray-600">
-                    Vende productos y actualiza el inventario
+                    Gestiona el stock mediante compras y ventas
                   </p>
                 </CardContent>
               </Card>

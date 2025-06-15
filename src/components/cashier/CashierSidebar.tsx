@@ -1,20 +1,19 @@
 
 import React from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
-  SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
-import { Home, ShoppingCart, TrendingUp, Package, LogOut } from 'lucide-react';
-import { useAuth } from '@/contexts/AuthContext';
+import { Home, Package, ShoppingCart, TrendingUp, Plus, LogOut } from 'lucide-react';
 
 interface CashierSidebarProps {
   activeTab: string;
@@ -26,54 +25,70 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({ activeTab, onTabChange 
 
   const menuItems = [
     {
-      title: "Resumen",
-      value: "summary",
+      id: 'summary',
+      title: 'Resumen',
       icon: Home,
+      description: 'Panel principal'
     },
     {
-      title: "Inventario",
-      value: "inventory",
+      id: 'products',
+      title: 'Productos',
+      icon: Plus,
+      description: 'Agregar productos'
+    },
+    {
+      id: 'inventory',
+      title: 'Inventario',
       icon: Package,
+      description: 'Consultar stock'
     },
     {
-      title: "Compras",
-      value: "purchases",
+      id: 'purchases',
+      title: 'Compras',
       icon: ShoppingCart,
+      description: 'Registrar compras'
     },
     {
-      title: "Ventas",
-      value: "sales",
+      id: 'sales',
+      title: 'Ventas',
       icon: TrendingUp,
-    },
+      description: 'Registrar ventas'
+    }
   ];
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-gray-400 rounded-full flex items-center justify-center">
-            <span className="text-white font-bold text-sm">BIOX+</span>
-          </div>
-          <div>
-            <h2 className="font-semibold text-lg">Cajero</h2>
-            <p className="text-sm text-gray-600">{user?.fullName || user?.username}</p>
-          </div>
-        </div>
-      </SidebarHeader>
-      
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navegación</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-purple-600 font-semibold">
+            Sistema BIOX+
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <div className="px-2 py-2">
+              <div className="text-sm text-gray-600">
+                <strong>{user?.fullName || user?.username}</strong>
+              </div>
+              <div className="text-xs text-gray-500">Cajero</div>
+            </div>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Operaciones</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.value}>
+                <SidebarMenuItem key={item.id}>
                   <SidebarMenuButton 
-                    onClick={() => onTabChange(item.value)}
-                    isActive={activeTab === item.value}
+                    onClick={() => onTabChange(item.id)}
+                    isActive={activeTab === item.id}
+                    className="w-full"
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    <div className="flex flex-col items-start">
+                      <span>{item.title}</span>
+                      <span className="text-xs text-gray-500">{item.description}</span>
+                    </div>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -82,15 +97,19 @@ const CashierSidebar: React.FC<CashierSidebarProps> = ({ activeTab, onTabChange 
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-4">
-        <Button
-          onClick={logout}
-          variant="outline"
-          className="w-full border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white"
-        >
-          <LogOut className="mr-2 h-4 w-4" />
-          Cerrar Sesión
-        </Button>
+      <SidebarFooter>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <Button
+              onClick={logout}
+              variant="outline"
+              className="w-full border-red-200 text-red-600 hover:bg-red-50"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Cerrar Sesión
+            </Button>
+          </SidebarGroupContent>
+        </SidebarGroup>
       </SidebarFooter>
     </Sidebar>
   );

@@ -1,27 +1,27 @@
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { TrendingUp, Plus, DollarSign } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { TrendingUp, Plus, ShoppingCart } from 'lucide-react';
 import { database, Product, Sale } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 const SalesManager: React.FC = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [isAddingSale, setIsAddingSale] = useState(false);
-  const [newSale, setNewSale] = useState({
+  const [saleForm, setSaleForm] = useState({
     productId: '',
     quantity: '',
     salePrice: ''
   });
-  const { user } = useAuth();
-  const { toast } = useToast();
 
   useEffect(() => {
     loadData();
@@ -29,57 +29,68 @@ const SalesManager: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const allProducts = await database.getAllProducts();
-      const userSales = await database.getSalesByUser(user?.id || 0);
-      setProducts(allProducts.filter(p => p.currentStock > 0));
+      const [allProducts, userSales] = await Promise.all([
+        database.getAllProducts(),
+        database.getSalesByUser(user?.id || 0)
+      ]);
+      setProducts(allProducts);
       setSales(userSales);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading sales data:', error);
     }
   };
 
-  const handleAddSale = async () => {
-    if (!newSale.productId || !newSale.quantity || !newSale.salePrice) {
+  const handleSale = async () => {
+    if (!saleForm.productId || !saleForm.quantity || !saleForm.salePrice) {
       toast({
         title: "Error",
-        description: "Producto, cantidad y precio son requeridos",
+        description: "Todos los campos son requeridos",
         variant: "destructive"
       });
       return;
     }
 
-    const selectedProduct = products.find(p => p.id === parseInt(newSale.productId));
-    if (!selectedProduct) return;
-
-    const quantity = parseInt(newSale.quantity);
-    if (quantity > selectedProduct.currentStock) {
+    const product = products.find(p => p.id?.toString() === saleForm.productId);
+    if (!product) {
       toast({
         title: "Error",
-        description: "No hay suficiente stock disponible",
+        description: "Producto no encontrado",
         variant: "destructive"
       });
       return;
     }
+
+    const quantity = parseInt(saleForm.quantity);
+    const salePrice = parseFloat(saleForm.salePrice);
+
+    if (quantity > product.currentStock) {
+      toast({
+        title: "Error",
+        description: `Stock insuficiente. Disponible: ${product.currentStock}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const total = quantity * salePrice;
 
     try {
-      const salePrice = parseFloat(newSale.salePrice);
       await database.createSale({
-        productId: parseInt(newSale.productId),
-        productName: selectedProduct.name,
-        quantity: quantity,
-        salePrice: salePrice,
-        total: quantity * salePrice,
+        productId: product.id!,
+        productName: product.name,
+        quantity,
+        salePrice,
+        total,
         cashierId: user?.id || 0,
         date: new Date()
       });
 
       toast({
         title: "Venta registrada",
-        description: `Se registró la venta de ${quantity} ${selectedProduct.name}`
+        description: `Venta de ${quantity} ${product.name} por $${total.toFixed(2)}`
       });
 
-      setNewSale({ productId: '', quantity: '', salePrice: '' });
-      setIsAddingSale(false);
+      setSaleForm({ productId: '', quantity: '', salePrice: '' });
       loadData();
     } catch (error) {
       toast({
@@ -90,83 +101,34 @@ const SalesManager: React.FC = () => {
     }
   };
 
-  const selectedProduct = products.find(p => p.id === parseInt(newSale.productId));
-  const total = newSale.quantity && newSale.salePrice 
-    ? (parseInt(newSale.quantity) * parseFloat(newSale.salePrice)).toFixed(2)
-    : '0.00';
+  const selectedProduct = products.find(p => p.id?.toString() === saleForm.productId);
+  const calculatedTotal = saleForm.quantity && saleForm.salePrice ? 
+    (parseInt(saleForm.quantity) * parseFloat(saleForm.salePrice)).toFixed(2) : '0.00';
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">Gestión de Ventas</h2>
-        <Button 
-          onClick={() => setIsAddingSale(true)}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Agregar Venta
-        </Button>
       </div>
 
-      {/* Lista de ventas */}
-      <div className="grid gap-4">
-        {sales.map((sale) => (
-          <Card key={sale.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <TrendingUp className="h-6 w-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-lg">{sale.productName}</h3>
-                    <p className="text-gray-600 text-sm">
-                      Cantidad: {sale.quantity} | Precio unitario: ${sale.salePrice}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-blue-600">
-                    ${sale.total.toFixed(2)}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(sale.date).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {sales.length === 0 && (
-        <Card>
-          <CardContent className="text-center py-8">
-            <TrendingUp className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-            <p className="text-gray-500">No hay ventas registradas</p>
-            <p className="text-gray-400 text-sm">Registra tu primera venta usando el botón de arriba</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Dialog para agregar venta */}
-      <Dialog open={isAddingSale} onOpenChange={setIsAddingSale}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Registrar Nueva Venta</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-4">
+      {/* Formulario de venta */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <Plus className="mr-2 h-5 w-5" />
+            Registrar Nueva Venta
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <Label htmlFor="product">Producto *</Label>
-              <Select
-                value={newSale.productId}
-                onValueChange={(value) => setNewSale({...newSale, productId: value})}
-              >
+              <Label htmlFor="product">Producto</Label>
+              <Select value={saleForm.productId} onValueChange={(value) => setSaleForm({...saleForm, productId: value})}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecciona un producto" />
+                  <SelectValue placeholder="Seleccionar producto" />
                 </SelectTrigger>
                 <SelectContent>
-                  {products.map((product) => (
+                  {products.filter(product => product.currentStock > 0).map(product => (
                     <SelectItem key={product.id} value={product.id!.toString()}>
                       {product.name} (Stock: {product.currentStock})
                     </SelectItem>
@@ -174,55 +136,98 @@ const SalesManager: React.FC = () => {
                 </SelectContent>
               </Select>
             </div>
-            
-            {selectedProduct && (
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  Stock disponible: <strong>{selectedProduct.currentStock}</strong>
+            <div>
+              <Label htmlFor="quantity">Cantidad</Label>
+              <Input
+                id="quantity"
+                type="number"
+                min="1"
+                max={selectedProduct?.currentStock || 0}
+                value={saleForm.quantity}
+                onChange={(e) => setSaleForm({...saleForm, quantity: e.target.value})}
+                placeholder="Cantidad a vender"
+              />
+              {selectedProduct && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Disponible: {selectedProduct.currentStock}
                 </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="quantity">Cantidad *</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  max={selectedProduct?.currentStock || 0}
-                  value={newSale.quantity}
-                  onChange={(e) => setNewSale({...newSale, quantity: e.target.value})}
-                  placeholder="0"
-                />
-              </div>
-              <div>
-                <Label htmlFor="price">Precio por Unidad *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={newSale.salePrice}
-                  onChange={(e) => setNewSale({...newSale, salePrice: e.target.value})}
-                  placeholder="0.00"
-                />
+              )}
+            </div>
+            <div>
+              <Label htmlFor="salePrice">Precio de Venta</Label>
+              <Input
+                id="salePrice"
+                type="number"
+                step="0.01"
+                min="0"
+                value={saleForm.salePrice}
+                onChange={(e) => setSaleForm({...saleForm, salePrice: e.target.value})}
+                placeholder="Precio unitario"
+              />
+            </div>
+            <div>
+              <Label>Total Calculado</Label>
+              <div className="p-2 bg-green-50 rounded-md border">
+                <span className="text-lg font-bold text-green-700">
+                  ${calculatedTotal}
+                </span>
               </div>
             </div>
-
-            {newSale.quantity && newSale.salePrice && (
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="text-blue-700 font-medium">Total:</span>
-                  <span className="text-blue-900 text-xl font-bold">${total}</span>
-                </div>
-              </div>
-            )}
-
-            <Button onClick={handleAddSale} className="w-full">
-              Registrar Venta
-            </Button>
           </div>
-        </DialogContent>
-      </Dialog>
+          <Button onClick={handleSale} className="w-full bg-blue-600 hover:bg-blue-700">
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Registrar Venta
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Historial de ventas */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center">
+            <TrendingUp className="mr-2 h-5 w-5" />
+            Mi Historial de Ventas
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {sales.length > 0 ? (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Fecha</TableHead>
+                  <TableHead>Producto</TableHead>
+                  <TableHead>Cantidad</TableHead>
+                  <TableHead>Precio Unit.</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sales.slice(0, 10).map((sale) => (
+                  <TableRow key={sale.id}>
+                    <TableCell>{new Date(sale.date).toLocaleDateString()}</TableCell>
+                    <TableCell>{sale.productName}</TableCell>
+                    <TableCell>{sale.quantity}</TableCell>
+                    <TableCell>${sale.salePrice.toFixed(2)}</TableCell>
+                    <TableCell className="font-bold">${sale.total.toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Badge className="bg-green-100 text-green-800">
+                        Completada
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          ) : (
+            <div className="text-center py-8">
+              <TrendingUp className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-gray-500">No has registrado ventas aún</p>
+              <p className="text-gray-400 text-sm">Las ventas aparecerán aquí una vez registradas</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };
