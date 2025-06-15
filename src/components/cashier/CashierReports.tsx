@@ -2,287 +2,288 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Label } from '@/components/ui/label';
+import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
-import { CalendarIcon, FileText, TrendingUp, ShoppingCart, DollarSign } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { FileText, Download, ShoppingBag, ShoppingCart, TrendingUp, Package } from 'lucide-react';
 import { database, Sale, Purchase } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
+import { addDays, format, startOfDay, endOfDay } from 'date-fns';
+import { es } from 'date-fns/locale';
+import { DateRange } from 'react-day-picker';
 
 const CashierReports: React.FC = () => {
   const { user } = useAuth();
-  const [startDate, setStartDate] = useState<Date>();
-  const [endDate, setEndDate] = useState<Date>();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [purchases, setPurchases] = useState<Purchase[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [date, setDate] = useState<DateRange | undefined>({
+    from: startOfDay(addDays(new Date(), -30)),
+    to: endOfDay(new Date())
+  });
+  const [reportData, setReportData] = useState({
+    sales: [] as Sale[],
+    purchases: [] as Purchase[],
+    totalSales: 0,
+    totalRevenue: 0,
+    totalPurchases: 0,
+    totalPurchaseAmount: 0,
+    salesByDay: [] as { date: string; ventas: number; ingresos: number }[]
+  });
 
-  const loadReports = async () => {
-    if (!startDate || !endDate || !user?.id) return;
-    
-    setLoading(true);
+  useEffect(() => {
+    if (date?.from && date?.to) {
+      generateReport();
+    }
+  }, [date]);
+
+  const generateReport = async () => {
+    if (!date?.from || !date?.to) return;
+
     try {
-      const [salesData, purchasesData] = await Promise.all([
-        database.getSalesByDateRange(startDate, endDate, user.id),
-        database.getPurchasesByDateRange(startDate, endDate, user.id)
+      const [sales, purchases] = await Promise.all([
+        database.getSalesByDateRange(date.from, date.to, user?.id),
+        database.getPurchasesByDateRange(date.from, date.to, user?.id)
       ]);
+
+      const totalSales = sales.length;
+      const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
+      const totalPurchases = purchases.length;
+      const totalPurchaseAmount = purchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0);
+
+      // Generar datos por día
+      const salesByDayMap = new Map();
       
-      setSales(salesData);
-      setPurchases(purchasesData);
+      sales.forEach(sale => {
+        const dateKey = format(new Date(sale.date), 'yyyy-MM-dd');
+        if (!salesByDayMap.has(dateKey)) {
+          salesByDayMap.set(dateKey, { ventas: 0, ingresos: 0 });
+        }
+        const dayData = salesByDayMap.get(dateKey);
+        dayData.ventas += 1;
+        dayData.ingresos += sale.total;
+      });
+
+      const salesByDay = Array.from(salesByDayMap.entries()).map(([date, data]) => ({
+        date: format(new Date(date), 'dd/MM', { locale: es }),
+        ventas: data.ventas,
+        ingresos: data.ingresos
+      }));
+
+      setReportData({
+        sales,
+        purchases,
+        totalSales,
+        totalRevenue,
+        totalPurchases,
+        totalPurchaseAmount,
+        salesByDay
+      });
     } catch (error) {
-      console.error('Error al cargar reportes:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error generando reporte:', error);
     }
   };
 
-  useEffect(() => {
-    if (startDate && endDate) {
-      loadReports();
-    }
-  }, [startDate, endDate, user?.id]);
-
-  const totalSales = sales.reduce((sum, sale) => sum + sale.total, 0);
-  const totalPurchases = purchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0);
-  const totalSalesQuantity = sales.reduce((sum, sale) => sum + sale.quantity, 0);
-  const totalPurchasesQuantity = purchases.reduce((sum, purchase) => sum + purchase.quantity, 0);
+  const exportReport = () => {
+    // Implementar exportación a CSV
+    console.log('Exportando reporte...');
+  };
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-          <FileText className="mr-2 h-6 w-6" />
-          Mis Reportes
-        </h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">Mis Reportes</h2>
+        <Button onClick={exportReport} variant="outline">
+          <Download className="mr-2 h-4 w-4" />
+          Exportar
+        </Button>
       </div>
 
-      {/* Filtros de Fecha */}
+      {/* Filtros de fecha */}
       <Card>
         <CardHeader>
-          <CardTitle>Filtrar por Fechas</CardTitle>
+          <CardTitle>Filtros de Reporte</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2">Fecha Inicio</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !startDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {startDate ? format(startDate, "PPP", { locale: es }) : "Seleccionar fecha"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={startDate}
-                    onSelect={setStartDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Rango de Fechas</Label>
+              <DatePickerWithRange date={date} setDate={setDate} />
             </div>
-            
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-2">Fecha Fin</label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !endDate && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {endDate ? format(endDate, "PPP", { locale: es }) : "Seleccionar fecha"}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={endDate}
-                    onSelect={setEndDate}
-                    initialFocus
-                    className="pointer-events-auto"
-                  />
-                </PopoverContent>
-              </Popover>
+            <div className="flex items-end">
+              <Button onClick={generateReport} className="w-full">
+                <FileText className="mr-2 h-4 w-4" />
+                Generar Reporte
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Resumen de Estadísticas */}
-      {startDate && endDate && (
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Ventas</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">${totalSales.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  {totalSalesQuantity} productos vendidos
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Compras</CardTitle>
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">${totalPurchases.toLocaleString()}</div>
-                <p className="text-xs text-muted-foreground">
-                  {totalPurchasesQuantity} productos comprados
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Transacciones Ventas</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{sales.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  Operaciones de venta
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Transacciones Compras</CardTitle>
-                <ShoppingCart className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">{purchases.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  Operaciones de compra
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Tablas de Detalle */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Ventas */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <TrendingUp className="mr-2 h-5 w-5" />
-                  Detalle de Ventas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="max-h-96 overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sales.map((sale) => (
-                        <TableRow key={sale.id}>
-                          <TableCell>
-                            {format(new Date(sale.date), "dd/MM/yyyy")}
-                          </TableCell>
-                          <TableCell>{sale.productName}</TableCell>
-                          <TableCell>{sale.quantity}</TableCell>
-                          <TableCell>${sale.total.toLocaleString()}</TableCell>
-                        </TableRow>
-                      ))}
-                      {sales.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-gray-500">
-                            No hay ventas en el período seleccionado
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Compras */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <ShoppingCart className="mr-2 h-5 w-5" />
-                  Detalle de Compras
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="max-h-96 overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Fecha</TableHead>
-                        <TableHead>Producto</TableHead>
-                        <TableHead>Cantidad</TableHead>
-                        <TableHead>Total</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {purchases.map((purchase) => (
-                        <TableRow key={purchase.id}>
-                          <TableCell>
-                            {format(new Date(purchase.date), "dd/MM/yyyy")}
-                          </TableCell>
-                          <TableCell>{purchase.productName}</TableCell>
-                          <TableCell>{purchase.quantity}</TableCell>
-                          <TableCell>
-                            ${(purchase.quantity * purchase.purchasePrice).toLocaleString()}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      {purchases.length === 0 && (
-                        <TableRow>
-                          <TableCell colSpan={4} className="text-center text-gray-500">
-                            No hay compras en el período seleccionado
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
-
-      {!startDate || !endDate ? (
+      {/* Resumen */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-center text-gray-500">
-              <FileText className="mx-auto h-12 w-12 mb-4 opacity-50" />
-              <p>Selecciona un rango de fechas para ver tus reportes</p>
-            </div>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Ventas</CardTitle>
+            <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{reportData.totalSales}</div>
+            <p className="text-xs text-muted-foreground">
+              Ventas realizadas
+            </p>
           </CardContent>
         </Card>
-      ) : null}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ingresos</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">S/ {reportData.totalRevenue.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Total generado
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Compras</CardTitle>
+            <ShoppingCart className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{reportData.totalPurchases}</div>
+            <p className="text-xs text-muted-foreground">
+              Compras realizadas
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Inversión</CardTitle>
+            <Package className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">S/ {reportData.totalPurchaseAmount.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">
+              Total invertido
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráficos y detalles */}
+      <Tabs defaultValue="charts" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="charts">Gráficos</TabsTrigger>
+          <TabsTrigger value="sales">Detalle Ventas</TabsTrigger>
+          <TabsTrigger value="purchases">Detalle Compras</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="charts" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ventas por Día</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={reportData.salesByDay}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip 
+                    formatter={(value, name) => [
+                      name === 'ingresos' ? `S/ ${value}` : value,
+                      name === 'ventas' ? 'Ventas' : 'Ingresos (S/)'
+                    ]}
+                  />
+                  <Bar dataKey="ventas" fill="#3b82f6" />
+                  <Bar dataKey="ingresos" fill="#10b981" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="sales" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle de Ventas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {reportData.sales.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Precio Unit.</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reportData.sales.map((sale) => (
+                      <TableRow key={sale.id}>
+                        <TableCell>{format(new Date(sale.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{sale.productName}</TableCell>
+                        <TableCell>{sale.quantity}</TableCell>
+                        <TableCell>S/ {sale.salePrice.toFixed(2)}</TableCell>
+                        <TableCell className="font-bold">S/ {sale.total.toFixed(2)}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8">
+                  <ShoppingBag className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-gray-500">No hay ventas en el período seleccionado</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="purchases" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Detalle de Compras</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {reportData.purchases.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Producto</TableHead>
+                      <TableHead>Cantidad</TableHead>
+                      <TableHead>Precio Unit.</TableHead>
+                      <TableHead>Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {reportData.purchases.map((purchase) => (
+                      <TableRow key={purchase.id}>
+                        <TableCell>{format(new Date(purchase.date), 'dd/MM/yyyy')}</TableCell>
+                        <TableCell>{purchase.productName}</TableCell>
+                        <TableCell>{purchase.quantity}</TableCell>
+                        <TableCell>S/ {purchase.purchasePrice.toFixed(2)}</TableCell>
+                        <TableCell className="font-bold">
+                          S/ {(purchase.quantity * purchase.purchasePrice).toFixed(2)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8">
+                  <ShoppingCart className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-gray-500">No hay compras en el período seleccionado</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

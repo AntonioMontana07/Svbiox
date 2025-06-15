@@ -38,7 +38,7 @@ const PurchaseManager: React.FC = () => {
       setProducts(allProducts);
       setPurchases(userPurchases);
     } catch (error) {
-      console.error('Error loading purchase data:', error);
+      console.error('Error cargando datos de compras:', error);
     }
   };
 
@@ -78,7 +78,7 @@ const PurchaseManager: React.FC = () => {
 
       toast({
         title: "Compra registrada",
-        description: `Compra de ${quantity} ${product.name} registrada exitosamente`
+        description: `Compra de ${quantity} ${product.name} registrada exitosamente. Inventario actualizado.`
       });
 
       setPurchaseForm({ productId: '', quantity: '', purchasePrice: '', description: '' });
@@ -144,7 +144,7 @@ const PurchaseManager: React.FC = () => {
               />
             </div>
             <div>
-              <Label htmlFor="purchasePrice">Precio de Compra (Unitario)</Label>
+              <Label htmlFor="purchasePrice">Precio de Compra (Unitario) - S/</Label>
               <Input
                 id="purchasePrice"
                 type="number"
@@ -152,14 +152,14 @@ const PurchaseManager: React.FC = () => {
                 min="0"
                 value={purchaseForm.purchasePrice}
                 onChange={(e) => setPurchaseForm({...purchaseForm, purchasePrice: e.target.value})}
-                placeholder="Precio por unidad"
+                placeholder="Precio por unidad en soles"
               />
             </div>
             <div>
               <Label>Total de la Compra</Label>
               <div className="p-2 bg-blue-50 rounded-md border">
                 <span className="text-lg font-bold text-blue-700">
-                  ${calculatedTotal}
+                  S/ {calculatedTotal}
                 </span>
               </div>
             </div>
@@ -176,7 +176,7 @@ const PurchaseManager: React.FC = () => {
           </div>
           <Button onClick={handlePurchase} className="w-full bg-green-600 hover:bg-green-700">
             <ShoppingCart className="mr-2 h-4 w-4" />
-            Registrar Compra
+            Registrar Compra (Actualiza Inventario Global)
           </Button>
         </CardContent>
       </Card>
@@ -208,9 +208,9 @@ const PurchaseManager: React.FC = () => {
                     <TableCell>{new Date(purchase.date).toLocaleDateString()}</TableCell>
                     <TableCell>{purchase.productName}</TableCell>
                     <TableCell>{purchase.quantity}</TableCell>
-                    <TableCell>${purchase.purchasePrice.toFixed(2)}</TableCell>
+                    <TableCell>S/ {purchase.purchasePrice.toFixed(2)}</TableCell>
                     <TableCell className="font-bold">
-                      ${(purchase.quantity * purchase.purchasePrice).toFixed(2)}
+                      S/ {(purchase.quantity * purchase.purchasePrice).toFixed(2)}
                     </TableCell>
                     <TableCell>
                       <Badge className="bg-blue-100 text-blue-800">
