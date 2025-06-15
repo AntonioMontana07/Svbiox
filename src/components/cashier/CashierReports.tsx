@@ -41,19 +41,23 @@ const CashierReports: React.FC = () => {
 
     try {
       const [sales, purchases] = await Promise.all([
-        database.getSalesByDateRange(date.from, date.to, user?.id),
-        database.getPurchasesByDateRange(date.from, date.to, user?.id)
+        database.getSalesByDateRange(date.from, date.to),
+        database.getPurchasesByDateRange(date.from, date.to)
       ]);
 
-      const totalSales = sales.length;
-      const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
-      const totalPurchases = purchases.length;
-      const totalPurchaseAmount = purchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0);
+      // Filter by user after getting the data
+      const userSales = sales.filter(sale => sale.cashierId === user?.id);
+      const userPurchases = purchases.filter(purchase => purchase.cashierId === user?.id);
+
+      const totalSales = userSales.length;
+      const totalRevenue = userSales.reduce((sum, sale) => sum + sale.total, 0);
+      const totalPurchases = userPurchases.length;
+      const totalPurchaseAmount = userPurchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0);
 
       // Generar datos por día
       const salesByDayMap = new Map();
       
-      sales.forEach(sale => {
+      userSales.forEach(sale => {
         const dateKey = format(new Date(sale.date), 'yyyy-MM-dd');
         if (!salesByDayMap.has(dateKey)) {
           salesByDayMap.set(dateKey, { ventas: 0, ingresos: 0 });
@@ -70,8 +74,8 @@ const CashierReports: React.FC = () => {
       }));
 
       setReportData({
-        sales,
-        purchases,
+        sales: userSales,
+        purchases: userPurchases,
         totalSales,
         totalRevenue,
         totalPurchases,

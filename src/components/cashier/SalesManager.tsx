@@ -198,9 +198,7 @@ const SalesManager: React.FC = () => {
           paymentMethod,
           amountReceived: paymentMethod === 'efectivo' ? parseFloat(amountReceived) : undefined,
           cashierId: user?.id || 0,
-          date: new Date(),
-          subtotal: 0, // Se calculará en createSale
-          igv: 0 // Se calculará en createSale
+          date: new Date()
         });
       }
 

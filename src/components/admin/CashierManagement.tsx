@@ -49,7 +49,7 @@ const CashierManagement: React.FC = () => {
       await database.addUser({
         username: newCashier.username,
         email: newCashier.email,
-        password: newCashier.password,
+        passwordHash: newCashier.password, // Use passwordHash instead of password
         role: 'cashier',
         fullName: newCashier.fullName,
         isActive: true
