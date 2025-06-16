@@ -7,7 +7,7 @@ import { DatePickerWithRange } from '@/components/ui/date-picker-with-range';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { FileText, Download, CalendarIcon, User, Activity, Trophy, Crown } from 'lucide-react';
+import { FileText, Download, CalendarIcon, User, Activity, Trophy, Crown, TrendingUp, Star, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -25,10 +25,13 @@ const AdminReports: React.FC = () => {
     totalRevenue: 0,
     totalPurchases: 0,
     totalPurchaseAmount: 0,
+    profit: 0,
     salesByDay: [] as { date: string; ventas: number; ingresos: number }[],
     salesByCashier: [] as { name: string; sales: number; revenue: number }[],
     purchasesByCashier: [] as { name: string; purchases: number; amount: number }[],
-    topCashier: null as { name: string; sales: number; revenue: number } | null
+    topCashier: null as { name: string; sales: number; revenue: number } | null,
+    topCustomerByPurchases: null as { name: string; purchases: number } | null,
+    topCustomerByRevenue: null as { name: string; revenue: number } | null
   });
 
   useEffect(() => {
@@ -41,16 +44,20 @@ const AdminReports: React.FC = () => {
     if (!date?.from || !date?.to) return;
 
     try {
-      const [sales, purchases, cashiers] = await Promise.all([
+      const [sales, purchases, cashiers, customers] = await Promise.all([
         database.getSalesByDateRange(date.from, date.to),
         database.getPurchasesByDateRange(date.from, date.to),
-        database.getAllCashiers()
+        database.getAllCashiers(),
+        database.getAllCustomers()
       ]);
 
       const totalSales = sales.length;
       const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
       const totalPurchases = purchases.length;
       const totalPurchaseAmount = purchases.reduce((sum, purchase) => sum + (purchase.quantity * purchase.purchasePrice), 0);
+      
+      // Calcular ganancias totales
+      const profit = totalRevenue - totalPurchaseAmount;
 
       // Generar datos por día
       const salesByDayMap = new Map();
@@ -118,15 +125,55 @@ const AdminReports: React.FC = () => {
           )
         : null;
 
+      // Análisis de clientes top
+      const customerStats = new Map();
+      
+      sales.forEach(sale => {
+        if (sale.customerId) {
+          const customer = customers.find(c => c.id === sale.customerId);
+          if (customer) {
+            const customerName = `${customer.firstName} ${customer.lastName}`;
+            if (!customerStats.has(customerName)) {
+              customerStats.set(customerName, { purchases: 0, revenue: 0 });
+            }
+            const stats = customerStats.get(customerName);
+            stats.purchases += 1;
+            stats.revenue += sale.total;
+          }
+        }
+      });
+
+      // Cliente que más compró (cantidad de compras)
+      let topCustomerByPurchases = null;
+      let maxPurchases = 0;
+      
+      // Cliente que más contribuyó (ingresos)
+      let topCustomerByRevenue = null;
+      let maxRevenue = 0;
+
+      customerStats.forEach((stats, customerName) => {
+        if (stats.purchases > maxPurchases) {
+          maxPurchases = stats.purchases;
+          topCustomerByPurchases = { name: customerName, purchases: stats.purchases };
+        }
+        if (stats.revenue > maxRevenue) {
+          maxRevenue = stats.revenue;
+          topCustomerByRevenue = { name: customerName, revenue: stats.revenue };
+        }
+      });
+
       setReportData({
         totalSales,
         totalRevenue,
         totalPurchases,
         totalPurchaseAmount,
+        profit,
         salesByDay,
         salesByCashier,
         purchasesByCashier,
-        topCashier
+        topCashier,
+        topCustomerByPurchases,
+        topCustomerByRevenue
       });
     } catch (error) {
       console.error('Error generando reporte:', error);
@@ -171,7 +218,7 @@ const AdminReports: React.FC = () => {
       </Card>
 
       {/* Resumen general */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Ventas</CardTitle>
@@ -220,6 +267,20 @@ const AdminReports: React.FC = () => {
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Ganancias</CardTitle>
+            <TrendingUp className={`h-4 w-4 ${reportData.profit >= 0 ? 'text-green-500' : 'text-red-500'}`} />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${reportData.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              S/ {reportData.profit.toLocaleString()}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {reportData.profit >= 0 ? 'Ganancia neta' : 'Pérdida neta'}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Cajero destacado */}
@@ -257,6 +318,49 @@ const AdminReports: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Tarjetas de clientes destacados */}
+      {(reportData.topCustomerByPurchases || reportData.topCustomerByRevenue) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {reportData.topCustomerByPurchases && (
+            <Card className="bg-blue-50 border-blue-200">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-blue-700">
+                  <Users className="h-5 w-5" />
+                  <span>Cliente que más compró</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold text-blue-800">
+                  {reportData.topCustomerByPurchases.name}
+                </div>
+                <div className="text-sm text-blue-600">
+                  {reportData.topCustomerByPurchases.purchases} compras realizadas
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {reportData.topCustomerByRevenue && (
+            <Card className="bg-green-50 border-green-200">
+              <CardHeader>
+                <CardTitle className="flex items-center space-x-2 text-green-700">
+                  <Star className="h-5 w-5" />
+                  <span>Cliente que más contribuyó</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xl font-bold text-green-800">
+                  {reportData.topCustomerByRevenue.name}
+                </div>
+                <div className="text-sm text-green-600">
+                  S/ {reportData.topCustomerByRevenue.revenue.toLocaleString()} en ingresos
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
 
       {/* Pestañas para diferentes reportes */}
