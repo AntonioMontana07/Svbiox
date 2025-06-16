@@ -8,6 +8,7 @@ export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
     port: 8080,
+    strictPort: true,
   },
   plugins: [
     react(),
@@ -16,5 +17,13 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+  },
+  // Optimización para Tauri
+  clearScreen: false,
+  envPrefix: ['VITE_', 'TAURI_'],
+  build: {
+    target: process.env.TAURI_PLATFORM === 'windows' ? 'chrome105' : 'safari13',
+    minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
+    sourcemap: !!process.env.TAURI_DEBUG,
   },
 }));
