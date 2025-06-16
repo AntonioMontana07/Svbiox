@@ -1,6 +1,6 @@
 
 import { Button } from "@/components/ui/button";
-import { moon, sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
@@ -23,9 +23,6 @@ export function ThemeToggle() {
     }
   }, [isDark]);
 
-  const MoonIcon = moon;
-  const SunIcon = sun;
-
   return (
     <Button
       variant="outline"
@@ -34,9 +31,9 @@ export function ThemeToggle() {
       className="h-8 w-8 p-0"
     >
       {isDark ? (
-        <SunIcon className="h-4 w-4" />
+        <Sun className="h-4 w-4" />
       ) : (
-        <MoonIcon className="h-4 w-4" />
+        <Moon className="h-4 w-4" />
       )}
       <span className="sr-only">Toggle theme</span>
     </Button>
