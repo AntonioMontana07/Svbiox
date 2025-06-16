@@ -1,9 +1,9 @@
 
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
-import { Sale, User } from '@/lib/database';
+import { Sale, User, Customer } from '@/lib/database';
 
-export const generateSalesPDF = async (sales: Sale[], user: User | null) => {
+export const generateSalesPDF = async (sales: Sale[], user: User | null, customer?: Customer | null) => {
   // Crear PDF con dimensiones exactas: 80mm x 210mm
   // 80mm = 226.77 points, 210mm = 595.28 points
   const doc = new jsPDF({
@@ -99,7 +99,7 @@ export const generateSalesPDF = async (sales: Sale[], user: User | null) => {
   addLeftText(`Fecha: ${fechaHora}`, yPos, smallSize);
   yPos += smallSpacing;
   
-  // Vendedor
+  // Vendedor (cajero)
   const vendedor = `Vendedor: ${(user?.fullName || user?.username || 'N/A').substring(0, 20)}`;
   addLeftText(vendedor, yPos, smallSize);
   yPos += normalSpacing;
@@ -116,11 +116,23 @@ export const generateSalesPDF = async (sales: Sale[], user: User | null) => {
   addLeftText(`# Ticket: ${sales[0].id}`, yPos, normalSize, 'bold');
   yPos += normalSpacing;
   
-  // Cliente
-  addLeftText(`Cliente: ${(user?.fullName || 'Cliente General').substring(0, 25)}`, yPos, smallSize);
+  // Información del cliente
+  if (customer) {
+    addLeftText(`Cliente: ${customer.firstName} ${customer.lastName}`, yPos, smallSize);
+    yPos += smallSpacing;
+    if (customer.dni) {
+      addLeftText(`DNI: ${customer.dni}`, yPos, smallSize);
+      yPos += smallSpacing;
+    }
+    if (customer.phone) {
+      addLeftText(`Telefono: ${customer.phone}`, yPos, smallSize);
+      yPos += smallSpacing;
+    }
+  } else {
+    addLeftText('Cliente: Cliente General', yPos, smallSize);
+    yPos += smallSpacing;
+  }
   yPos += smallSpacing;
-  addLeftText(`DNI: ${user?.id || '12345678'}`, yPos, smallSize);
-  yPos += normalSpacing;
   
   // Headers de productos con formato compacto
   addSeparatorLine(yPos, 'dashed');

@@ -34,6 +34,7 @@ export interface Sale {
   amountReceived?: number;
   change?: number;
   cashierId: number;
+  customerId?: number;
   date: Date;
 }
 
@@ -91,10 +92,10 @@ export class MyDatabase extends Dexie {
 
   constructor() {
     super('BioxDB');
-    this.version(5).stores({
+    this.version(6).stores({
       products: '++id, name, price, currentStock, minStock',
       users: '++id, username, fullName, role, passwordHash, email, isActive',
-      sales: '++id, productId, productName, quantity, salePrice, total, cashierId, date, paymentMethod',
+      sales: '++id, productId, productName, quantity, salePrice, total, cashierId, customerId, date, paymentMethod',
       purchases: '++id, productId, productName, quantity, purchasePrice, supplierId, cashierId, date',
       inventoryLogs: '++id, productId, productName, date, changeInStock, newStockLevel, description',
       suppliers: '++id, name, contactName, contactEmail, contactPhone, address',
@@ -227,7 +228,7 @@ export const database = {
   },
 
   // Sale methods
-  async createSale(sale: Omit<Sale, 'id' | 'subtotal' | 'igv' | 'change'>): Promise<number> {
+  async createSale(sale: Omit<Sale, 'id' | 'subtotal' | 'igv' | 'change'>): Promise<Sale> {
     const db = await this.getDB();
     
     try {
@@ -260,7 +261,8 @@ export const database = {
           await db.products.update(sale.productId, { currentStock: product.currentStock });
         }
         
-        return saleId;
+        // Retornar la venta creada con su ID
+        return { ...saleData, id: saleId };
       });
       
       return result;

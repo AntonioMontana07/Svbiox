@@ -6,8 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Plus, ShoppingBag, Trash2, ShoppingCart, Download, Trash } from 'lucide-react';
-import { database, Product, Sale } from '@/lib/database';
+import { TrendingUp, Plus, ShoppingBag, Trash2, ShoppingCart, Download, Trash, User } from 'lucide-react';
+import { database, Product, Sale, Customer } from '@/lib/database';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { generateSalesPDF } from '@/utils/pdfGenerator';
@@ -25,8 +25,10 @@ const SalesManager: React.FC = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [paymentMethod, setPaymentMethod] = useState<'efectivo' | 'tarjeta' | 'yape'>('efectivo');
   const [amountReceived, setAmountReceived] = useState('');
   const [itemForm, setItemForm] = useState({
@@ -41,11 +43,13 @@ const SalesManager: React.FC = () => {
 
   const loadData = async () => {
     try {
-      const [allProducts, userSales] = await Promise.all([
+      const [allProducts, allCustomers, userSales] = await Promise.all([
         database.getAllProducts(),
+        database.getAllCustomers(),
         database.getSalesByUser(user?.id || 0)
       ]);
       setProducts(allProducts);
+      setCustomers(allCustomers);
       setSales(userSales);
     } catch (error) {
       console.error('Error cargando datos de ventas:', error);
@@ -202,6 +206,7 @@ const SalesManager: React.FC = () => {
           amountReceived: paymentMethod === 'efectivo' ? parseFloat(amountReceived) : undefined,
           change: paymentMethod === 'efectivo' ? change : undefined,
           cashierId: user?.id || 0,
+          customerId: selectedCustomerId ? parseInt(selectedCustomerId) : undefined,
           date: new Date()
         };
         
@@ -214,10 +219,14 @@ const SalesManager: React.FC = () => {
         description: `Venta total por S/ ${totalSale.toFixed(2)} registrada. ${cart.length} productos vendidos.${paymentMethod === 'efectivo' ? ` Cambio: S/ ${change.toFixed(2)}` : ''}`
       });
 
+      // Obtener datos del cliente seleccionado para el PDF
+      const selectedCustomer = selectedCustomerId ? 
+        customers.find(c => c.id?.toString() === selectedCustomerId) : null;
+
       // Generar PDF automáticamente con todos los productos de la venta
       if (createdSales.length > 0) {
         try {
-          await generateSalesPDF(createdSales, user);
+          await generateSalesPDF(createdSales, user, selectedCustomer);
           toast({
             title: "Boleta generada",
             description: "La boleta ha sido descargada automáticamente"
@@ -228,6 +237,7 @@ const SalesManager: React.FC = () => {
       }
 
       setCart([]);
+      setSelectedCustomerId('');
       setPaymentMethod('efectivo');
       setAmountReceived('');
       loadData();
@@ -259,7 +269,9 @@ const SalesManager: React.FC = () => {
 
   const downloadSalesPDF = async (sale: Sale) => {
     try {
-      await generateSalesPDF([sale], user);
+      // Obtener datos del cliente si existe
+      const customer = sale.customerId ? await database.getCustomerById(sale.customerId) : null;
+      await generateSalesPDF([sale], user, customer);
       toast({
         title: "PDF generado",
         description: "La boleta ha sido descargada exitosamente"
@@ -363,6 +375,27 @@ const SalesManager: React.FC = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Selección de cliente */}
+            <div className="bg-blue-50 p-4 rounded-lg">
+              <Label htmlFor="customer" className="flex items-center font-medium mb-2">
+                <User className="mr-2 h-4 w-4" />
+                Cliente (Opcional)
+              </Label>
+              <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar cliente (opcional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Cliente General</SelectItem>
+                  {customers.map(customer => (
+                    <SelectItem key={customer.id} value={customer.id!.toString()}>
+                      {customer.firstName} {customer.lastName} {customer.dni ? `- DNI: ${customer.dni}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Tabla de productos */}
             <Table>
               <TableHeader>
