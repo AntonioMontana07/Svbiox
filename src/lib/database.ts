@@ -217,46 +217,44 @@ export const database = {
   async createSale(sale: Omit<Sale, 'id' | 'subtotal' | 'igv' | 'change'>): Promise<number> {
     const db = await this.getDB();
     
-    // Calcular subtotal e IGV (18%)
-    const subtotal = sale.total / 1.18;
-    const igv = sale.total - subtotal;
-    
-    // Calcular vuelto si es efectivo
-    let change = 0;
-    if (sale.paymentMethod === 'efectivo' && sale.amountReceived) {
-      change = sale.amountReceived - sale.total;
-    }
-    
-    const saleData = {
-      ...sale,
-      subtotal: parseFloat(subtotal.toFixed(2)),
-      igv: parseFloat(igv.toFixed(2)),
-      change: parseFloat(change.toFixed(2))
-    };
-    
-    const transaction = db.transaction(['sales', 'products'], 'readwrite');
-    const salesStore = transaction.objectStore('sales');
-    const productsStore = transaction.objectStore('products');
-    
-    // Crear la venta
-    const request = salesStore.add(saleData);
-    const saleId = await new Promise<number>((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result as number);
-      request.onerror = () => reject(request.error);
-    });
-    
-    // Actualizar el stock del producto
-    const product = await this.getProductById(sale.productId);
-    if (product) {
-      product.currentStock -= sale.quantity;
-      await new Promise<void>((resolve, reject) => {
-        const updateRequest = productsStore.put(product);
-        updateRequest.onsuccess = () => resolve();
-        updateRequest.onerror = () => reject(updateRequest.error);
+    try {
+      // Calcular subtotal e IGV (18%)
+      const subtotal = sale.total / 1.18;
+      const igv = sale.total - subtotal;
+      
+      // Calcular vuelto si es efectivo
+      let change = 0;
+      if (sale.paymentMethod === 'efectivo' && sale.amountReceived) {
+        change = sale.amountReceived - sale.total;
+      }
+      
+      const saleData = {
+        ...sale,
+        subtotal: parseFloat(subtotal.toFixed(2)),
+        igv: parseFloat(igv.toFixed(2)),
+        change: parseFloat(change.toFixed(2))
+      };
+      
+      // Usar transacción de Dexie correctamente
+      const result = await db.transaction('rw', db.sales, db.products, async () => {
+        // Crear la venta
+        const saleId = await db.sales.add(saleData);
+        
+        // Actualizar el stock del producto
+        const product = await db.products.get(sale.productId);
+        if (product) {
+          product.currentStock -= sale.quantity;
+          await db.products.update(sale.productId, { currentStock: product.currentStock });
+        }
+        
+        return saleId;
       });
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating sale:', error);
+      throw new Error('No se pudo registrar la venta');
     }
-    
-    return saleId;
   },
 
   async getAllSales(): Promise<Sale[]> {
@@ -277,44 +275,37 @@ export const database = {
   async deleteSale(saleId: number): Promise<void> {
     const db = await this.getDB();
     
-    // Primero obtener la venta para restaurar el stock
-    const sale = await this.getSaleById(saleId);
-    if (sale) {
-      const product = await this.getProductById(sale.productId);
-      if (product) {
-        // Restaurar el stock
-        product.currentStock += sale.quantity;
-        const transaction = db.transaction(['products'], 'readwrite');
-        const productsStore = transaction.objectStore('products');
-        await new Promise<void>((resolve, reject) => {
-          const updateRequest = productsStore.put(product);
-          updateRequest.onsuccess = () => resolve();
-          updateRequest.onerror = () => reject(updateRequest.error);
-        });
-      }
+    try {
+      await db.transaction('rw', db.sales, db.products, async () => {
+        // Primero obtener la venta para restaurar el stock
+        const sale = await db.sales.get(saleId);
+        if (sale) {
+          const product = await db.products.get(sale.productId);
+          if (product) {
+            // Restaurar el stock
+            product.currentStock += sale.quantity;
+            await db.products.update(sale.productId, { currentStock: product.currentStock });
+          }
+        }
+        
+        // Eliminar la venta
+        await db.sales.delete(saleId);
+      });
+    } catch (error) {
+      console.error('Error deleting sale:', error);
+      throw new Error('No se pudo eliminar la venta');
     }
-    
-    // Eliminar la venta
-    const transaction = db.transaction(['sales'], 'readwrite');
-    const salesStore = transaction.objectStore('sales');
-    
-    return new Promise<void>((resolve, reject) => {
-      const request = salesStore.delete(saleId);
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
   },
 
   async getSaleById(saleId: number): Promise<Sale | null> {
     const db = await this.getDB();
-    const transaction = db.transaction(['sales'], 'readonly');
-    const salesStore = transaction.objectStore('sales');
-    
-    return new Promise<Sale | null>((resolve, reject) => {
-      const request = salesStore.get(saleId);
-      request.onsuccess = () => resolve(request.result || null);
-      request.onerror = () => reject(request.error);
-    });
+    try {
+      const sale = await db.sales.get(saleId);
+      return sale || null;
+    } catch (error) {
+      console.error('Error getting sale:', error);
+      return null;
+    }
   },
 
   // Purchase methods
