@@ -187,9 +187,12 @@ const SalesManager: React.FC = () => {
     }
 
     try {
+      const createdSales: Sale[] = [];
+      const change = paymentMethod === 'efectivo' ? parseFloat(amountReceived) - totalSale : 0;
+      
       // Procesar cada item del carrito como una venta individual
       for (const item of cart) {
-        await database.createSale({
+        const saleData = {
           productId: item.productId,
           productName: item.productName,
           quantity: item.quantity,
@@ -197,17 +200,32 @@ const SalesManager: React.FC = () => {
           total: item.total,
           paymentMethod,
           amountReceived: paymentMethod === 'efectivo' ? parseFloat(amountReceived) : undefined,
+          change: paymentMethod === 'efectivo' ? change : undefined,
           cashierId: user?.id || 0,
           date: new Date()
-        });
+        };
+        
+        const createdSale = await database.createSale(saleData);
+        createdSales.push(createdSale);
       }
 
-      const change = paymentMethod === 'efectivo' ? parseFloat(amountReceived) - totalSale : 0;
-      
       toast({
         title: "Venta procesada exitosamente",
         description: `Venta total por S/ ${totalSale.toFixed(2)} registrada. ${cart.length} productos vendidos.${paymentMethod === 'efectivo' ? ` Cambio: S/ ${change.toFixed(2)}` : ''}`
       });
+
+      // Generar PDF automáticamente con todos los productos de la venta
+      if (createdSales.length > 0) {
+        try {
+          await generateSalesPDF(createdSales, user);
+          toast({
+            title: "Boleta generada",
+            description: "La boleta ha sido descargada automáticamente"
+          });
+        } catch (error) {
+          console.error('Error generando PDF:', error);
+        }
+      }
 
       setCart([]);
       setPaymentMethod('efectivo');
@@ -241,7 +259,7 @@ const SalesManager: React.FC = () => {
 
   const downloadSalesPDF = async (sale: Sale) => {
     try {
-      await generateSalesPDF(sale, user);
+      await generateSalesPDF([sale], user);
       toast({
         title: "PDF generado",
         description: "La boleta ha sido descargada exitosamente"
