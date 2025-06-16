@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,6 +55,12 @@ const CustomerManager: React.FC = () => {
     try {
       setIsLoading(true);
       
+      // Crear el objeto con todos los campos necesarios incluyendo createdAt
+      const customerData = {
+        ...data,
+        createdAt: new Date()
+      };
+      
       if (editingCustomer) {
         await database.updateCustomer(editingCustomer.id!, data);
         toast({
@@ -63,7 +68,7 @@ const CustomerManager: React.FC = () => {
           description: `${data.firstName} ${data.lastName} ha sido actualizado correctamente`,
         });
       } else {
-        await database.createCustomer(data);
+        await database.createCustomer(customerData);
         toast({
           title: "Cliente agregado",
           description: `${data.firstName} ${data.lastName} ha sido agregado correctamente`,
