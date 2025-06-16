@@ -4,6 +4,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Package, ShoppingCart, TrendingUp, Plus, FileText, Users } from 'lucide-react';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 import CashierSidebar from './CashierSidebar';
 import CashierInventory from './CashierInventory';
 import PurchaseManager from './PurchaseManager';
@@ -32,55 +33,55 @@ const CashierDashboard: React.FC = () => {
       default:
         return (
           <div className="space-y-6">
-            <h2 className="text-2xl font-bold text-gray-900">Panel de Cajero</h2>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Panel de Cajero</h2>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('products')}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-800 dark:border-gray-700" onClick={() => setActiveTab('products')}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Productos</CardTitle>
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">Productos</CardTitle>
                   <Plus className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Agregar</div>
+                  <div className="text-2xl font-bold dark:text-gray-100">Agregar</div>
                   <p className="text-xs text-muted-foreground">
                     Registra nuevos productos
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('customers')}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-800 dark:border-gray-700" onClick={() => setActiveTab('customers')}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">Clientes</CardTitle>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Gestionar</div>
+                  <div className="text-2xl font-bold dark:text-gray-100">Gestionar</div>
                   <p className="text-xs text-muted-foreground">
                     Administra clientes
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('inventory')}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-800 dark:border-gray-700" onClick={() => setActiveTab('inventory')}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Inventario</CardTitle>
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">Inventario</CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Consultar</div>
+                  <div className="text-2xl font-bold dark:text-gray-100">Consultar</div>
                   <p className="text-xs text-muted-foreground">
                     Ver stock disponible
                   </p>
                 </CardContent>
               </Card>
 
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('purchases')}>
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer dark:bg-gray-800 dark:border-gray-700" onClick={() => setActiveTab('purchases')}>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Compras</CardTitle>
+                  <CardTitle className="text-sm font-medium dark:text-gray-200">Compras</CardTitle>
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">Registrar</div>
+                  <div className="text-2xl font-bold dark:text-gray-100">Registrar</div>
                   <p className="text-xs text-muted-foreground">
                     Gestiona compras
                   </p>
@@ -183,20 +184,23 @@ const CashierDashboard: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
       <SidebarProvider>
         <div className="min-h-screen flex w-full">
           <CashierSidebar activeTab={activeTab} onTabChange={setActiveTab} />
           <SidebarInset>
-            <header className="bg-white shadow-lg border-b-4 border-purple-600">
-              <div className="flex items-center gap-2 px-4 py-4">
-                <SidebarTrigger className="-ml-1" />
-                <div className="flex items-center space-x-4">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-gray-400 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">BIOX+</span>
+            <header className="bg-white dark:bg-gray-800 shadow-lg border-b-4 border-purple-600">
+              <div className="flex items-center justify-between gap-2 px-4 py-4">
+                <div className="flex items-center gap-2">
+                  <SidebarTrigger className="-ml-1" />
+                  <div className="flex items-center space-x-4">
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-gray-400 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold text-sm">BIOX+</span>
+                    </div>
+                    <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Panel de Cajero</h1>
                   </div>
-                  <h1 className="text-xl font-bold text-gray-900">Panel de Cajero</h1>
                 </div>
+                <ThemeToggle />
               </div>
             </header>
             <main className="flex-1 p-6">
