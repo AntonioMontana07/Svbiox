@@ -16,7 +16,7 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
   const pageHeight = 595.28; // 210mm en puntos
   const margin = 10;
   const centerX = pageWidth / 2;
-  let yPos = 15;
+  let yPos = 20;
   
   // Función helper para texto centrado
   const addCenteredText = (text: string, y: number, fontSize: number = 8, style: string = 'normal') => {
@@ -39,17 +39,32 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
     doc.text(text, pageWidth - margin, y, { align: 'right' });
   };
   
+  // Función helper para líneas separadoras
+  const addSeparatorLine = (y: number, style: 'solid' | 'dashed' = 'solid') => {
+    if (style === 'dashed') {
+      doc.setLineDashPattern([2, 2], 0);
+    } else {
+      doc.setLineDashPattern([], 0);
+    }
+    doc.line(margin, y, pageWidth - margin, y);
+    doc.setLineDashPattern([], 0); // Reset to solid
+  };
+  
   // Header de la empresa
-  addCenteredText('BIOX', yPos, 14, 'bold');
-  yPos += 15;
+  addCenteredText('BIOX', yPos, 16, 'bold');
+  yPos += 18;
   addCenteredText('Salud y Bienestar', yPos, 10, 'normal');
   yPos += 15;
+  addCenteredText('Biox Peru EIRL', yPos, 10, 'bold');
+  yPos += 15;
   
-  // Información de la empresa
-  addCenteredText('Biox Peru EIRL', yPos, 9, 'bold');
+  // Línea separadora después del header
+  addSeparatorLine(yPos);
+  yPos += 15;
+  
+  // Información de la empresa con mejor espaciado
+  addCenteredText('RUC: 20603026811', yPos, 8);
   yPos += 12;
-  addCenteredText('RUC: 20603026811', yPos, 7);
-  yPos += 10;
   addCenteredText('Av. San Martin 108 Miraflores-Arequipa', yPos, 7);
   yPos += 10;
   addCenteredText('Correo: tienda@biox.com.pe', yPos, 7);
@@ -57,9 +72,13 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
   addCenteredText('Teléfonos: 957888815 - 941035450', yPos, 7);
   yPos += 10;
   addCenteredText('Biox.com.pe', yPos, 7);
+  yPos += 20;
+  
+  // Línea separadora
+  addSeparatorLine(yPos);
   yPos += 15;
   
-  // Fecha y hora
+  // Fecha y hora con mejor formato
   const saleDate = new Date(sale.date);
   const fechaHora = `Fecha y Hora: ${saleDate.toLocaleDateString()} a las ${saleDate.toLocaleTimeString()}`;
   addLeftText(fechaHora, yPos, 7);
@@ -68,33 +87,39 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
   // Vendedor
   const vendedor = `Vendedor: ${user?.fullName || user?.username || 'N/A'}`;
   addLeftText(vendedor, yPos, 7);
-  yPos += 15;
+  yPos += 20;
   
-  // Título del ticket
+  // Título del ticket con marco
+  addSeparatorLine(yPos);
+  yPos += 15;
   addCenteredText('TICKET DE VENTA ELECTRONICA', yPos, 10, 'bold');
+  yPos += 15;
+  addSeparatorLine(yPos);
   yPos += 15;
   
   // Número de ticket
-  addLeftText(`# Ticket: ${sale.id}`, yPos, 8);
-  yPos += 12;
+  addLeftText(`# Ticket: ${sale.id}`, yPos, 8, 'bold');
+  yPos += 15;
   
   // Cliente (usando datos del cajero por ahora)
   addLeftText(`Cliente: ${user?.fullName || 'Cliente General'}`, yPos, 7);
   yPos += 10;
   addLeftText(`DNI: ${user?.id || '12345678'}`, yPos, 7);
-  yPos += 15;
+  yPos += 20;
   
-  // Headers de productos
-  addLeftText('Cant.', yPos, 8, 'bold');
-  doc.text('Producto', 50, yPos);
-  addRightText('Precio', yPos, 8, 'bold');
-  yPos += 3;
-  
-  // Línea separadora
-  doc.line(margin, yPos, pageWidth - margin, yPos);
+  // Headers de productos con línea
+  addSeparatorLine(yPos, 'dashed');
   yPos += 12;
   
-  // Producto
+  addLeftText('Cant.', yPos, 8, 'bold');
+  doc.text('Producto', 50, yPos, { align: 'left' });
+  addRightText('Precio', yPos, 8, 'bold');
+  yPos += 12;
+  
+  addSeparatorLine(yPos, 'dashed');
+  yPos += 15;
+  
+  // Producto con mejor espaciado
   addLeftText(sale.quantity.toString(), yPos, 8);
   
   // Nombre del producto (truncar si es muy largo)
@@ -104,38 +129,43 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
   doc.text(productName, 35, yPos);
   
   addRightText(`S/ ${sale.salePrice.toFixed(2)}`, yPos, 8);
-  yPos += 15;
+  yPos += 20;
   
   // Línea separadora antes de totales
-  doc.line(margin, yPos, pageWidth - margin, yPos);
-  yPos += 12;
+  addSeparatorLine(yPos);
+  yPos += 15;
   
   // Calcular subtotal e IGV
   const subtotal = sale.total / 1.18;
   const igv = sale.total - subtotal;
   
-  // Totales
+  // Totales con mejor alineación
   addLeftText('Subtotal:', yPos, 8);
   addRightText(`S/ ${subtotal.toFixed(2)}`, yPos, 8);
   yPos += 12;
   
   addLeftText('IGV:', yPos, 8);
   addRightText(`S/ ${igv.toFixed(2)}`, yPos, 8);
-  yPos += 12;
-  
-  addLeftText('Total:', yPos, 9, 'bold');
-  addRightText(`S/ ${sale.total.toFixed(2)}`, yPos, 9, 'bold');
   yPos += 15;
   
-  // Forma de pago
+  // Total destacado
+  addSeparatorLine(yPos);
+  yPos += 12;
+  addLeftText('Total:', yPos, 10, 'bold');
+  addRightText(`S/ ${sale.total.toFixed(2)}`, yPos, 10, 'bold');
+  yPos += 15;
+  addSeparatorLine(yPos);
+  yPos += 20;
+  
+  // Forma de pago destacada
   const paymentMethodText = sale.paymentMethod === 'efectivo' ? 'EFECTIVO' : 
                            sale.paymentMethod === 'tarjeta' ? 'TARJETA' : 'YAPE';
   addLeftText(`FORMA DE PAGO:`, yPos, 8, 'bold');
   yPos += 12;
-  addLeftText(paymentMethodText, yPos, 8);
-  yPos += 15;
+  addLeftText(paymentMethodText, yPos, 9, 'bold');
+  yPos += 20;
   
-  // Información de pago
+  // Información de pago con espaciado
   if (sale.paymentMethod === 'efectivo' && sale.amountReceived) {
     addLeftText('RECIBIDO:', yPos, 8);
     addRightText(`S/ ${sale.amountReceived.toFixed(2)}`, yPos, 8);
@@ -143,17 +173,17 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
     
     addLeftText('DEVOLUCION:', yPos, 8);
     addRightText(`S/ ${(sale.change || 0).toFixed(2)}`, yPos, 8);
-    yPos += 12;
+    yPos += 15;
   } else {
     addLeftText('RECIBIDO: -', yPos, 8);
     yPos += 10;
     addLeftText('DEVOLUCION: -', yPos, 8);
-    yPos += 12;
+    yPos += 15;
   }
   
-  yPos += 10;
+  yPos += 15;
   
-  // Generar código QR
+  // Generar código QR con diseño mejorado
   try {
     const qrDataURL = await QRCode.toDataURL('https://www.biox.com.pe', {
       width: 150,
@@ -163,6 +193,10 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
         light: '#FFFFFF'
       }
     });
+    
+    // Línea separadora antes del QR
+    addSeparatorLine(yPos, 'dashed');
+    yPos += 15;
     
     // Agregar texto antes del QR
     addCenteredText('Consultar en:', yPos, 7);
@@ -175,21 +209,25 @@ export const generateSalesPDF = async (sale: Sale, user: User | null) => {
     yPos += qrSize + 15;
     
     // URL debajo del QR
-    addCenteredText('WWW.BIOX.COM.PE', yPos, 7, 'bold');
-    yPos += 15;
+    addCenteredText('WWW.BIOX.COM.PE', yPos, 8, 'bold');
+    yPos += 20;
     
   } catch (error) {
     console.error('Error generando QR:', error);
     // Fallback si falla el QR
-    addCenteredText('WWW.BIOX.COM.PE', yPos, 7, 'bold');
-    yPos += 20;
+    addCenteredText('WWW.BIOX.COM.PE', yPos, 8, 'bold');
+    yPos += 25;
   }
   
-  // Footer
+  // Footer con líneas separadoras
+  addSeparatorLine(yPos, 'dashed');
+  yPos += 12;
   addCenteredText('Autorizado mediante Resolución 034-005-0007241', yPos, 6);
   yPos += 15;
   
-  addCenteredText('GRACIAS POR SU PREFERENCIA', yPos, 8, 'bold');
+  addSeparatorLine(yPos);
+  yPos += 15;
+  addCenteredText('GRACIAS POR SU PREFERENCIA', yPos, 9, 'bold');
   
   // Guardar el PDF
   const fileName = `ticket_${sale.id}_${saleDate.toISOString().split('T')[0]}.pdf`;
