@@ -1,17 +1,19 @@
 
 import jsPDF from 'jspdf';
+import QRCode from 'qrcode';
 import { Sale, User } from '@/lib/database';
 
-export const generateSalesPDF = (sale: Sale, user: User | null) => {
-  // Crear PDF con dimensiones de ticket térmico (80mm width, height auto)
-  // 80mm = 226.77 points, usamos altura variable
+export const generateSalesPDF = async (sale: Sale, user: User | null) => {
+  // Crear PDF con dimensiones exactas: 80mm x 210mm
+  // 80mm = 226.77 points, 210mm = 595.28 points
   const doc = new jsPDF({
     unit: 'pt',
-    format: [226.77, 400], // Ancho fijo 80mm, altura inicial
+    format: [226.77, 595.28], // 80mm x 210mm
     orientation: 'portrait'
   });
   
   const pageWidth = 226.77; // 80mm en puntos
+  const pageHeight = 595.28; // 210mm en puntos
   const margin = 10;
   const centerX = pageWidth / 2;
   let yPos = 15;
@@ -151,38 +153,43 @@ export const generateSalesPDF = (sale: Sale, user: User | null) => {
   
   yPos += 10;
   
-  // Representación QR (texto placeholder)
-  addCenteredText('Representación de Pagina web QR', yPos, 7);
-  yPos += 20;
-  
-  // Espacio para QR code (rectángulo placeholder)
-  const qrSize = 60;
-  const qrX = (pageWidth - qrSize) / 2;
-  doc.rect(qrX, yPos, qrSize, qrSize);
-  yPos += qrSize + 15;
+  // Generar código QR
+  try {
+    const qrDataURL = await QRCode.toDataURL('https://www.biox.com.pe', {
+      width: 150,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
+    
+    // Agregar texto antes del QR
+    addCenteredText('Consultar en:', yPos, 7);
+    yPos += 15;
+    
+    // Insertar QR code real
+    const qrSize = 60;
+    const qrX = (pageWidth - qrSize) / 2;
+    doc.addImage(qrDataURL, 'PNG', qrX, yPos, qrSize, qrSize);
+    yPos += qrSize + 15;
+    
+    // URL debajo del QR
+    addCenteredText('WWW.BIOX.COM.PE', yPos, 7, 'bold');
+    yPos += 15;
+    
+  } catch (error) {
+    console.error('Error generando QR:', error);
+    // Fallback si falla el QR
+    addCenteredText('WWW.BIOX.COM.PE', yPos, 7, 'bold');
+    yPos += 20;
+  }
   
   // Footer
-  addCenteredText('Puede consultar en: WWW.BIOX.COM.PE', yPos, 6);
-  yPos += 10;
   addCenteredText('Autorizado mediante Resolución 034-005-0007241', yPos, 6);
   yPos += 15;
   
   addCenteredText('GRACIAS POR SU PREFERENCIA', yPos, 8, 'bold');
-  yPos += 20;
-  
-  // Ajustar la altura del PDF al contenido
-  const finalHeight = yPos + 10;
-  if (finalHeight > 400) {
-    // Si necesitamos más espacio, recrear el PDF con la altura correcta
-    const newDoc = new jsPDF({
-      unit: 'pt',
-      format: [226.77, finalHeight],
-      orientation: 'portrait'
-    });
-    
-    // Copiar el contenido al nuevo documento
-    // (Para simplificar, guardamos con la altura inicial y el contenido se ajusta)
-  }
   
   // Guardar el PDF
   const fileName = `ticket_${sale.id}_${saleDate.toISOString().split('T')[0]}.pdf`;

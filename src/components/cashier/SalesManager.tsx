@@ -239,9 +239,9 @@ const SalesManager: React.FC = () => {
     }
   };
 
-  const downloadSalesPDF = (sale: Sale) => {
+  const downloadSalesPDF = async (sale: Sale) => {
     try {
-      generateSalesPDF(sale, user);
+      await generateSalesPDF(sale, user);
       toast({
         title: "PDF generado",
         description: "La boleta ha sido descargada exitosamente"
