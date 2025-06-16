@@ -3,13 +3,14 @@ import React, { useState } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Package, ShoppingCart, TrendingUp, Plus, FileText } from 'lucide-react';
+import { Package, ShoppingCart, TrendingUp, Plus, FileText, Users } from 'lucide-react';
 import CashierSidebar from './CashierSidebar';
 import CashierInventory from './CashierInventory';
 import PurchaseManager from './PurchaseManager';
 import SalesManager from './SalesManager';
 import ProductManager from './ProductManager';
 import CashierReports from './CashierReports';
+import CustomerManager from './CustomerManager';
 
 const CashierDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('summary');
@@ -26,6 +27,8 @@ const CashierDashboard: React.FC = () => {
         return <ProductManager />;
       case 'reports':
         return <CashierReports />;
+      case 'customers':
+        return <CustomerManager />;
       default:
         return (
           <div className="space-y-6">
@@ -41,6 +44,19 @@ const CashierDashboard: React.FC = () => {
                   <div className="text-2xl font-bold">Agregar</div>
                   <p className="text-xs text-muted-foreground">
                     Registra nuevos productos
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('customers')}>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">Gestionar</div>
+                  <p className="text-xs text-muted-foreground">
+                    Administra clientes
                   </p>
                 </CardContent>
               </Card>
@@ -70,22 +86,9 @@ const CashierDashboard: React.FC = () => {
                   </p>
                 </CardContent>
               </Card>
-
-              <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => setActiveTab('sales')}>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Ventas</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">Vender</div>
-                  <p className="text-xs text-muted-foreground">
-                    Registra ventas
-                  </p>
-                </CardContent>
-              </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center">
@@ -102,6 +105,26 @@ const CashierDashboard: React.FC = () => {
                   </Button>
                   <p className="text-sm text-gray-600">
                     Registra productos nuevos en el inventario global
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <Users className="mr-2 h-5 w-5" />
+                    Gestión de Clientes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    className="w-full bg-indigo-600 hover:bg-indigo-700"
+                    onClick={() => setActiveTab('customers')}
+                  >
+                    Administrar Clientes
+                  </Button>
+                  <p className="text-sm text-gray-600">
+                    Registra y gestiona información de clientes
                   </p>
                 </CardContent>
               </Card>

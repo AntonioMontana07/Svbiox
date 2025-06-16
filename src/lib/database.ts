@@ -69,6 +69,17 @@ export interface Supplier {
     address: string;
 }
 
+export interface Customer {
+  id?: number;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  phone?: string;
+  dni?: string;
+  description?: string;
+  createdAt: Date;
+}
+
 export class MyDatabase extends Dexie {
   products!: Table<Product>;
   users!: Table<User>;
@@ -76,16 +87,18 @@ export class MyDatabase extends Dexie {
   purchases!: Table<Purchase>;
   inventoryLogs!: Table<InventoryLog>;
   suppliers!: Table<Supplier>;
+  customers!: Table<Customer>;
 
   constructor() {
     super('BioxDB');
-    this.version(4).stores({
+    this.version(5).stores({
       products: '++id, name, price, currentStock, minStock',
       users: '++id, username, fullName, role, passwordHash, email, isActive',
       sales: '++id, productId, productName, quantity, salePrice, total, cashierId, date, paymentMethod',
       purchases: '++id, productId, productName, quantity, purchasePrice, supplierId, cashierId, date',
       inventoryLogs: '++id, productId, productName, date, changeInStock, newStockLevel, description',
-      suppliers: '++id, name, contactName, contactEmail, contactPhone, address'
+      suppliers: '++id, name, contactName, contactEmail, contactPhone, address',
+      customers: '++id, firstName, lastName, email, phone, dni, createdAt'
     });
   }
 }
@@ -385,6 +398,49 @@ export const database = {
   async deleteSupplier(id: number): Promise<void> {
     const db = await this.getDB();
     await db.suppliers.delete(id);
+  },
+
+  // Customer methods
+  async createCustomer(customer: Omit<Customer, 'id'>): Promise<number> {
+    const db = await this.getDB();
+    const customerData = {
+      ...customer,
+      createdAt: new Date()
+    };
+    return await db.customers.add(customerData);
+  },
+
+  async getCustomerById(id: number): Promise<Customer | undefined> {
+    const db = await this.getDB();
+    return await db.customers.get(id);
+  },
+
+  async getAllCustomers(): Promise<Customer[]> {
+    const db = await this.getDB();
+    return await db.customers.orderBy('firstName').toArray();
+  },
+
+  async updateCustomer(id: number, updates: Partial<Customer>): Promise<void> {
+    const db = await this.getDB();
+    await db.customers.update(id, updates);
+  },
+
+  async deleteCustomer(id: number): Promise<void> {
+    const db = await this.getDB();
+    await db.customers.delete(id);
+  },
+
+  async searchCustomers(query: string): Promise<Customer[]> {
+    const db = await this.getDB();
+    const allCustomers = await db.customers.toArray();
+    const searchTerm = query.toLowerCase();
+    
+    return allCustomers.filter(customer => 
+      customer.firstName.toLowerCase().includes(searchTerm) ||
+      customer.lastName.toLowerCase().includes(searchTerm) ||
+      (customer.email && customer.email.toLowerCase().includes(searchTerm)) ||
+      (customer.dni && customer.dni.includes(searchTerm))
+    );
   },
 };
 
