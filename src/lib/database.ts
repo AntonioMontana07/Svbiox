@@ -1,4 +1,3 @@
-
 import Dexie, { Table } from 'dexie';
 
 export interface Product {
@@ -322,29 +321,27 @@ export const database = {
   async createPurchase(purchase: Omit<Purchase, 'id'>): Promise<number> {
     const db = await this.getDB();
     
-    const transaction = db.transaction(['purchases', 'products'], 'readwrite');
-    const purchasesStore = transaction.objectStore('purchases');
-    const productsStore = transaction.objectStore('products');
-    
-    // Crear la compra
-    const request = purchasesStore.add(purchase);
-    const purchaseId = await new Promise<number>((resolve, reject) => {
-      request.onsuccess = () => resolve(request.result as number);
-      request.onerror = () => reject(request.error);
-    });
-    
-    // Actualizar el stock del producto
-    const product = await this.getProductById(purchase.productId);
-    if (product) {
-      product.currentStock += purchase.quantity;
-      await new Promise<void>((resolve, reject) => {
-        const updateRequest = productsStore.put(product);
-        updateRequest.onsuccess = () => resolve();
-        updateRequest.onerror = () => reject(updateRequest.error);
+    try {
+      // Usar transacción de Dexie correctamente
+      const result = await db.transaction('rw', db.purchases, db.products, async () => {
+        // Crear la compra
+        const purchaseId = await db.purchases.add(purchase);
+        
+        // Actualizar el stock del producto
+        const product = await db.products.get(purchase.productId);
+        if (product) {
+          product.currentStock += purchase.quantity;
+          await db.products.update(purchase.productId, { currentStock: product.currentStock });
+        }
+        
+        return purchaseId;
       });
+      
+      return result;
+    } catch (error) {
+      console.error('Error creating purchase:', error);
+      throw new Error('No se pudo registrar la compra');
     }
-    
-    return purchaseId;
   },
 
   async getAllPurchases(): Promise<Purchase[]> {

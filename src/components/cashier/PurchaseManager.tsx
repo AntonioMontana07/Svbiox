@@ -24,6 +24,7 @@ const PurchaseManager: React.FC = () => {
     purchasePrice: '',
     description: ''
   });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -39,14 +40,51 @@ const PurchaseManager: React.FC = () => {
       setPurchases(userPurchases);
     } catch (error) {
       console.error('Error cargando datos de compras:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los datos",
+        variant: "destructive"
+      });
     }
   };
 
   const handlePurchase = async () => {
-    if (!purchaseForm.productId || !purchaseForm.quantity || !purchaseForm.purchasePrice) {
+    console.log('Iniciando registro de compra...');
+    console.log('Form data:', purchaseForm);
+    console.log('User:', user);
+
+    // Validaciones mejoradas
+    if (!purchaseForm.productId) {
       toast({
         title: "Error",
-        description: "Producto, cantidad y precio son requeridos",
+        description: "Debe seleccionar un producto",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!purchaseForm.quantity || parseInt(purchaseForm.quantity) <= 0) {
+      toast({
+        title: "Error",
+        description: "La cantidad debe ser mayor a 0",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!purchaseForm.purchasePrice || parseFloat(purchaseForm.purchasePrice) <= 0) {
+      toast({
+        title: "Error",
+        description: "El precio debe ser mayor a 0",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!user?.id) {
+      toast({
+        title: "Error",
+        description: "Usuario no válido",
         variant: "destructive"
       });
       return;
@@ -65,16 +103,30 @@ const PurchaseManager: React.FC = () => {
     const quantity = parseInt(purchaseForm.quantity);
     const purchasePrice = parseFloat(purchaseForm.purchasePrice);
 
+    setIsLoading(true);
+    console.log('Creando compra con datos:', {
+      productId: product.id!,
+      productName: product.name,
+      quantity,
+      purchasePrice,
+      description: purchaseForm.description || '',
+      cashierId: user.id,
+      date: new Date()
+    });
+
     try {
-      await database.createPurchase({
+      const purchaseData = {
         productId: product.id!,
         productName: product.name,
         quantity,
         purchasePrice,
         description: purchaseForm.description || '',
-        cashierId: user?.id || 0,
+        cashierId: user.id,
         date: new Date()
-      });
+      };
+
+      const purchaseId = await database.createPurchase(purchaseData);
+      console.log('Compra creada con ID:', purchaseId);
 
       toast({
         title: "Compra registrada",
@@ -82,13 +134,16 @@ const PurchaseManager: React.FC = () => {
       });
 
       setPurchaseForm({ productId: '', quantity: '', purchasePrice: '', description: '' });
-      loadData();
+      await loadData(); // Recargar datos
     } catch (error) {
+      console.error('Error registrando compra:', error);
       toast({
         title: "Error",
-        description: "No se pudo registrar la compra",
+        description: error instanceof Error ? error.message : "No se pudo registrar la compra",
         variant: "destructive"
       });
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -174,9 +229,13 @@ const PurchaseManager: React.FC = () => {
               rows={3}
             />
           </div>
-          <Button onClick={handlePurchase} className="w-full bg-green-600 hover:bg-green-700">
+          <Button 
+            onClick={handlePurchase} 
+            className="w-full bg-green-600 hover:bg-green-700"
+            disabled={isLoading}
+          >
             <ShoppingCart className="mr-2 h-4 w-4" />
-            Registrar Compra (Actualiza Inventario Global)
+            {isLoading ? 'Registrando...' : 'Registrar Compra (Actualiza Inventario Global)'}
           </Button>
         </CardContent>
       </Card>
