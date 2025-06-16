@@ -53,8 +53,8 @@ const AdminDashboard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <SidebarTrigger className="-ml-1" />
                   <div className="flex items-center space-x-4">
-                    <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-gray-400 rounded-full flex items-center justify-center">
-                      <span className="text-white font-bold text-sm">BIOX+</span>
+                    <div className="w-12 h-8 bg-gradient-to-r from-purple-600 to-gray-400 rounded-full flex items-center justify-center px-2">
+                      <span className="text-white font-bold text-xs">BIOX+</span>
                     </div>
                     <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Panel de Administrador</h1>
                   </div>
