@@ -19,7 +19,6 @@ const ProductManager: React.FC = () => {
     name: '',
     description: '',
     imageUrl: '',
-    price: '',
     minStock: '',
     currentStock: ''
   });
@@ -39,7 +38,7 @@ const ProductManager: React.FC = () => {
         name: newProduct.name,
         description: newProduct.description || '',
         imageUrl: newProduct.imageUrl || '',
-        price: newProduct.price ? parseFloat(newProduct.price) : 0,
+        price: 0, // Precio inicial será 0, se establecerá desde compras
         minStock: parseInt(newProduct.minStock),
         currentStock: newProduct.currentStock ? parseInt(newProduct.currentStock) : 0,
         createdBy: user?.username || 'cajero'
@@ -50,7 +49,7 @@ const ProductManager: React.FC = () => {
         description: `${newProduct.name} ha sido agregado al inventario`
       });
 
-      setNewProduct({ name: '', description: '', imageUrl: '', price: '', minStock: '', currentStock: '' });
+      setNewProduct({ name: '', description: '', imageUrl: '', minStock: '', currentStock: '' });
       setIsAddingProduct(false);
     } catch (error) {
       toast({
@@ -88,18 +87,6 @@ const ProductManager: React.FC = () => {
                     value={newProduct.name}
                     onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
                     placeholder="Nombre del producto"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="price">Precio - S/ (Opcional)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={newProduct.price}
-                    onChange={(e) => setNewProduct({...newProduct, price: e.target.value})}
-                    placeholder="0.00"
                   />
                 </div>
                 <div>
@@ -150,7 +137,8 @@ const ProductManager: React.FC = () => {
           <h4 className="font-medium text-blue-900 mb-2">Importante:</h4>
           <ul className="text-sm text-blue-800 space-y-1">
             <li>• El nombre y stock mínimo son obligatorios</li>
-            <li>• El precio y stock inicial son opcionales (por defecto será 0)</li>
+            <li>• El stock inicial es opcional (por defecto será 0)</li>
+            <li>• El precio se establece al registrar compras</li>
             <li>• Los productos se comparten entre todos los cajeros</li>
             <li>• Las alertas aparecen cuando el stock actual ≤ stock mínimo</li>
           </ul>
